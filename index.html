@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADHD 투두리스트</title>
+<style>
+  :root{
+    --bg:#f4f1ea;
+    --card:#ffffff;
+    --ink:#2e2b26;
+    --sub:#8a8478;
+    --line:#e6e1d6;
+    --accent:#5b7fdb;
+    --accent-soft:#e8edfb;
+    --green:#4c9a6a;
+    --green-soft:#e6f4ea;
+    --yellow:#c98a2e;
+    --yellow-soft:#fbf0dd;
+    --blue:#3f7fc1;
+    --blue-soft:#e6f0fa;
+    --red:#c1543f;
+    --red-soft:#faeae7;
+    --purple:#7a6bbf;
+    --purple-soft:#efeaf9;
+    --teal:#3d9488;
+    --teal-soft:#e2f3f0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",-apple-system,sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:20px 16px 80px;}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;flex-wrap:wrap;margin-bottom:18px;
+  }
+  .topbar h1{font-size:20px;font-weight:700;margin:0;}
+  .topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .save-note{font-size:12px;color:var(--sub);margin-right:4px;}
+
+  .columns{
+    display:grid;
+    grid-template-columns:1.15fr 0.85fr;
+    gap:16px;
+    align-items:start;
+  }
+  @media (max-width:900px){ .columns{grid-template-columns:1fr;} }
+
+  .col-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;}
+  .col-title{font-size:15px;font-weight:700;margin:0 0 12px;display:flex;align-items:center;gap:6px;}
+  .col-title .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+  .col-title.proj .dot{background:var(--purple);}
+
+  /* 진행중 프로젝트 헤더 */
+  .active-proj-head{margin-bottom:12px;}
+  .active-proj-name{font-size:16px;font-weight:700;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  .active-proj-name .pct{font-size:14px;color:var(--accent);font-weight:700;}
+  .pbar{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin-top:7px;}
+  .pfill{height:100%;background:var(--accent);border-radius:99px;transition:width .25s;}
+
+  /* 탭 */
+  .tabs{
+    display:flex;gap:6px;margin-bottom:14px;background:var(--bg);
+    padding:5px;border-radius:12px;border:1px solid var(--line);
+  }
+  .tab-btn{
+    flex:1;padding:9px 4px;border:none;border-radius:9px;background:transparent;
+    color:var(--sub);font-size:13px;font-weight:600;cursor:pointer;
+    transition:background .15s,color .15s;
+  }
+  .tab-btn.active{background:var(--accent);color:#fff;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* 입력/버튼 */
+  .add-row{display:flex;gap:6px;margin-bottom:12px;}
+  .add-row input[type=text]{
+    flex:1;padding:11px;font-size:14px;border:1px solid var(--line);
+    border-radius:10px;background:#fff;color:var(--ink);min-width:0;
+  }
+  .add-row input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .btn{
+    padding:10px 12px;font-size:13px;font-weight:600;border:none;
+    border-radius:10px;cursor:pointer;white-space:nowrap;
+  }
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-accent{background:var(--accent);color:#fff;}
+  .btn-ghost{background:var(--accent-soft);color:var(--accent);}
+  .btn-danger{background:var(--red-soft);color:var(--red);}
+  .btn-neutral{background:var(--bg);color:var(--ink);border:1px solid var(--line);}
+  .toolbar{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+  .toolbar .btn{flex:1 1 auto;padding:8px 8px;font-size:12px;}
+
+  /* 리스트 트리 */
+  .task-list{display:flex;flex-direction:column;gap:6px;}
+  .task-row{
+    display:flex;align-items:center;gap:8px;
+    background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px;
+  }
+  .task-row.checked{background:var(--accent-soft);border-color:var(--accent);}
+  .task-row input[type=checkbox]{width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);cursor:pointer;}
+  .task-row .task-text{
+    flex:1;border:none;background:transparent;font-size:14px;color:var(--ink);
+    padding:4px 3px;border-radius:6px;min-width:0;
+  }
+  .task-row .task-text:focus{outline:2px solid var(--accent);background:#fff;}
+  .np-badge{
+    flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;
+    background:var(--teal-soft);color:var(--teal);
+  }
+  .empty-msg{text-align:center;color:var(--sub);padding:26px 8px;font-size:13px;line-height:1.6;}
+
+  /* 실행 탭 */
+  .execute-card{text-align:center;padding:16px 8px;}
+  .execute-progress{font-size:12px;color:var(--sub);margin-bottom:6px;}
+  .execute-path{font-size:12px;color:var(--sub);margin-bottom:4px;word-break:break-word;}
+  .execute-task-text{font-size:19px;font-weight:700;line-height:1.5;margin:8px 0 18px;word-break:break-word;}
+  .execute-actions{display:grid;grid-template-columns:1fr;gap:8px;text-align:left;}
+  .act-btn{
+    padding:12px 14px;border-radius:12px;border:none;cursor:pointer;
+    font-size:14px;font-weight:700;line-height:1.35;
+    display:flex;align-items:baseline;gap:8px;
+  }
+  .act-btn small{font-weight:400;font-size:12px;opacity:.8;}
+  .act-a{background:var(--green-soft);color:var(--green);}
+  .act-b{background:var(--yellow-soft);color:var(--yellow);}
+  .act-c{background:var(--blue-soft);color:var(--blue);}
+  .act-d{background:var(--purple-soft);color:var(--purple);}
+  .act-e{background:var(--teal-soft);color:var(--teal);}
+  .act-f{background:var(--red-soft);color:var(--red);}
+  .act-btn:active{transform:scale(0.99);}
+  .celebrate{font-size:15px;color:var(--sub);padding:34px 10px;}
+
+  /* 히스토리 트리 */
+  .h-tree{font-size:13.5px;line-height:1.7;}
+  .h-node{display:flex;align-items:baseline;gap:6px;padding:2px 0;word-break:break-word;}
+  .h-node .h-time{font-size:11px;color:var(--sub);flex-shrink:0;}
+  .h-node.h-gaveup .h-text{color:var(--sub);text-decoration:line-through;}
+  .h-children{margin-left:20px;border-left:2px solid var(--line);padding-left:10px;}
+  .h-insert-title{
+    font-size:13px;font-weight:700;color:var(--teal);
+    margin:16px 0 6px;padding-top:12px;border-top:1px dashed var(--line);
+  }
+
+  /* 프로젝트 관리 */
+  .proj-row{
+    display:flex;align-items:center;gap:8px;
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:8px 10px;margin-bottom:7px;cursor:pointer;
+  }
+  .proj-row.active{background:var(--purple-soft);border-color:var(--purple);}
+  .proj-row .proj-name{
+    flex:1;border:none;background:transparent;font-size:14px;font-weight:600;
+    color:var(--ink);padding:4px 3px;border-radius:6px;min-width:0;cursor:text;
+  }
+  .proj-row .proj-name:focus{outline:2px solid var(--purple);background:#fff;}
+  .proj-row .proj-pct{font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0;width:38px;text-align:right;}
+  .proj-row .btn{padding:6px 9px;font-size:12px;}
+  .proj-pbar{height:5px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:5px;}
+  .proj-hint{font-size:12px;color:var(--sub);margin:0 0 10px;line-height:1.5;}
+
+  /* 오버레이 */
+  .overlay{
+    display:none;position:fixed;inset:0;background:rgba(30,28,24,.5);
+    align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  .overlay.active{display:flex;}
+  .overlay-box{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:480px;}
+  .overlay-box h2{font-size:16px;margin:0 0 6px;}
+  .overlay-box p.hint{font-size:13px;color:var(--sub);margin:0 0 12px;}
+  .overlay-box textarea{
+    width:100%;min-height:140px;padding:12px;font-size:15px;font-family:inherit;
+    border:1px solid var(--line);border-radius:10px;resize:vertical;line-height:1.6;
+  }
+  .overlay-box textarea:focus{outline:2px solid var(--accent);}
+  .overlay-actions{display:flex;gap:8px;margin-top:14px;}
+  .overlay-actions .btn{flex:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>ADHD 투두리스트</h1>
+    <div class="topbar-actions">
+      <span class="save-note">입력 시 자동 저장됨</span>
+      <button class="btn btn-neutral" id="exportBtn">💾 백업 저장</button>
+      <button class="btn btn-neutral" id="importBtn">📂 불러오기</button>
+      <input type="file" id="importInput" accept="application/json,.json" style="display:none">
+    </div>
+  </div>
+
+  <div class="columns">
+    <!-- 1칼럼: 진행중 프로젝트 -->
+    <div class="col-card">
+      <h3 class="col-title"><span class="dot"></span>진행중 프로젝트</h3>
+      <div id="activeProjHead" class="active-proj-head"></div>
+      <div class="tabs" id="mainTabs">
+        <button class="tab-btn active" data-tab="list">리스트</button>
+        <button class="tab-btn" data-tab="execute">실행</button>
+        <button class="tab-btn" data-tab="history">히스토리</button>
+      </div>
+      <div class="panel active" id="panel-list">
+        <div class="add-row">
+          <input type="text" id="addInput" placeholder="할 일 입력 후 Enter" maxlength="300">
+          <button class="btn btn-accent" id="addBtn">추가</button>
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-ghost" id="moveUpBtn">선택 올리기</button>
+          <button class="btn btn-ghost" id="moveDownBtn">선택 내리기</button>
+          <button class="btn btn-danger" id="deleteSelBtn">선택 삭제</button>
+          <button class="btn btn-danger" id="clearAllBtn">리스트 비우기</button>
+        </div>
+        <div class="task-list" id="taskList"></div>
+      </div>
+      <div class="panel" id="panel-execute">
+        <div class="execute-card" id="executeCard"></div>
+      </div>
+      <div class="panel" id="panel-history">
+        <div id="historyView"></div>
+      </div>
+    </div>
+
+    <!-- 2칼럼: 프로젝트 관리 -->
+    <div class="col-card">
+      <h3 class="col-title proj"><span class="dot"></span>프로젝트 관리</h3>
+      <p class="proj-hint">프로젝트를 만들고 클릭해서 선택하면 왼쪽에서 그 프로젝트의 리스트가 열립니다. 진척도는 자동 계산됩니다.</p>
+      <div class="add-row">
+        <input type="text" id="projInput" placeholder="새 프로젝트 이름 후 Enter" maxlength="100">
+        <button class="btn btn-accent" id="projAddBtn">추가</button>
+      </div>
+      <div id="projList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 공용 오버레이 (쪼개기/인서트) -->
+<div class="overlay" id="ovl">
+  <div class="overlay-box">
+    <h2 id="ovlTitle">쪼개기</h2>
+    <p class="hint" id="ovlHint"></p>
+    <textarea id="ovlTextarea"></textarea>
+    <div class="overlay-actions">
+      <button class="btn btn-ghost" id="ovlCancelBtn">취소</button>
+      <button class="btn btn-accent" id="ovlConfirmBtn">확인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "adhd_todo_v2";
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(text != null) e.textContent = text;
+    return e;
+  }
+  function formatTs(ts){
+    if(!ts) return "";
+    var d = new Date(ts);
+    var p = function(n){ return n<10 ? "0"+n : ""+n; };
+    return (d.getMonth()+1)+"/"+d.getDate()+" "+p(d.getHours())+":"+p(d.getMinutes());
+  }
+  function newNode(text, nonProject){
+    return { id: uid(), text: text, status: "pending", completedAt: null, children: [], nonProject: !!nonProject };
+  }
+
+  // ---------- 상태 ----------
+  var state = { projects: [], activeProjectId: null };
+  var checkedSet = {};
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var p = JSON.parse(raw);
+        state.projects = p.projects || [];
+        state.activeProjectId = p.activeProjectId || null;
+        return;
+      }
+    }catch(e){}
+    // v1 마이그레이션: 이전 투두리스트1/2의 미완료 태스크만 가져옴
+    try{
+      ["adhd_todo_col1_v1","adhd_todo_col2_v1"].forEach(function(key, i){
+        var raw = localStorage.getItem(key);
+        if(!raw) return;
+        var old = JSON.parse(raw);
+        if(old.tasks && old.tasks.length){
+          state.projects.push({
+            id: uid(),
+            name: "이전 리스트 " + (i+1),
+            tasks: old.tasks.map(function(t){ return newNode(t.text); }),
+            inserts: []
+          });
+        }
+      });
+      if(state.projects.length) state.activeProjectId = state.projects[0].id;
+    }catch(e){}
+  }
+  function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  function activeProject(){
+    for(var i=0;i<state.projects.length;i++){
+      if(state.projects[i].id === state.activeProjectId) return state.projects[i];
+    }
+    return null;
+  }
+
+  // ---------- 트리 유틸 ----------
+  function locate(nodes, id, owner){
+    for(var i=0;i<nodes.length;i++){
+      if(nodes[i].id === id) return { arr: nodes, idx: i, owner: owner || null };
+      var r = locate(nodes[i].children, id, nodes[i]);
+      if(r) return r;
+    }
+    return null;
+  }
+  function findActionable(nodes){
+    for(var i=0;i<nodes.length;i++){
+      var n = nodes[i];
+      if(n.status !== "pending") continue;
+      if(n.children.length > 0){
+        var r = findActionable(n.children);
+        if(r) return r;
+      }else{
+        return n;
+      }
+    }
+    return null;
+  }
+  function findPath(nodes, id, trail){
+    for(var i=0;i<nodes.length;i++){
+      var n = nodes[i];
+      if(n.id === id) return trail.slice();
+      var r = findPath(n.children, id, trail.concat([n.text]));
+      if(r) return r;
+    }
+    return null;
+  }
+  function countPendingLeaves(nodes){
+    var c = 0;
+    nodes.forEach(function(n){
+      if(n.status !== "pending") return;
+      if(n.children.length > 0) c += countPendingLeaves(n.children);
+      else c += 1;
+    });
+    return c;
+  }
+  // 부모 자동완료: 자식이 전부 처리(완료/포기)되면 부모도 처리됨
+  function sweep(nodes){
+    nodes.forEach(function(n){
+      sweep(n.children);
+      if(n.status === "pending" && n.children.length > 0){
+        var allResolved = n.children.every(function(c){ return c.status !== "pending"; });
+        if(allResolved){
+          var anyDone = n.children.some(function(c){ return c.status === "done"; });
+          n.status = anyDone ? "done" : "gaveup";
+          var maxTs = 0;
+          n.children.forEach(function(c){ if(c.completedAt && c.completedAt > maxTs) maxTs = c.completedAt; });
+          n.completedAt = maxTs || Date.now();
+        }
+      }
+    });
+  }
+  // 진척도: 노드별 재귀 가중 평균. 포기/비프로젝트는 계산에서 제외.
+  function nodeProgress(n){
+    if(n.nonProject || n.status === "gaveup") return null;
+    if(n.status === "done") return 1;
+    var vals = [];
+    n.children.forEach(function(c){
+      var v = nodeProgress(c);
+      if(v !== null) vals.push(v);
+    });
+    if(vals.length === 0) return 0;
+    var s = 0; vals.forEach(function(v){ s += v; });
+    return s / vals.length;
+  }
+  function projectProgress(p){
+    var vals = [];
+    p.tasks.forEach(function(n){
+      var v = nodeProgress(n);
+      if(v !== null) vals.push(v);
+    });
+    if(vals.length === 0) return null;
+    var s = 0; vals.forEach(function(v){ s += v; });
+    return Math.round(s / vals.length * 100);
+  }
+  function collectResolvedNonProject(nodes, out){
+    nodes.forEach(function(n){
+      if(n.nonProject && n.status !== "pending"){
+        out.push(n);
+      }
+      collectResolvedNonProject(n.children, out);
+    });
+  }
+  function pruneFullyPending(nodes){
+    for(var i=nodes.length-1;i>=0;i--){
+      var n = nodes[i];
+      if(subtreeAllPending(n)){ nodes.splice(i,1); }
+      else pruneFullyPending(n.children);
+    }
+  }
+  function subtreeAllPending(n){
+    if(n.status !== "pending") return false;
+    return n.children.every(subtreeAllPending);
+  }
+
+  // ---------- 공용 오버레이 ----------
+  var ovl = document.getElementById("ovl");
+  var ovlTitle = document.getElementById("ovlTitle");
+  var ovlHint = document.getElementById("ovlHint");
+  var ovlTextarea = document.getElementById("ovlTextarea");
+  var ovlOnConfirm = null;
+  function openOvl(title, hint, initialText, onConfirm){
+    ovlTitle.textContent = title;
+    ovlHint.textContent = hint;
+    ovlTextarea.value = initialText;
+    ovlOnConfirm = onConfirm;
+    ovl.classList.add("active");
+    setTimeout(function(){ ovlTextarea.focus(); ovlTextarea.select(); }, 0);
+  }
+  function closeOvl(){
+    ovl.classList.remove("active");
+    ovlOnConfirm = null;
+  }
+  document.getElementById("ovlCancelBtn").addEventListener("click", closeOvl);
+  document.getElementById("ovlConfirmBtn").addEventListener("click", function(){
+    var lines = ovlTextarea.value.split("\n").map(function(s){ return s.trim(); }).filter(function(s){ return s.length>0; });
+    var cb = ovlOnConfirm;
+    closeOvl();
+    if(cb) cb(lines);
+  });
+  ovl.addEventListener("click", function(e){ if(e.target === ovl) closeOvl(); });
+
+  // ---------- 탭 ----------
+  var tabBtns = document.querySelectorAll("#mainTabs .tab-btn");
+  var panels = {
+    list: document.getElementById("panel-list"),
+    execute: document.getElementById("panel-execute"),
+    history: document.getElementById("panel-history")
+  };
+  tabBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      tabBtns.forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      Object.keys(panels).forEach(function(k){ panels[k].classList.remove("active"); });
+      panels[btn.dataset.tab].classList.add("active");
+      renderAll();
+    });
+  });
+
+  // ---------- 진행중 프로젝트 헤더 ----------
+  var activeProjHead = document.getElementById("activeProjHead");
+  function renderActiveHead(){
+    activeProjHead.innerHTML = "";
+    var p = activeProject();
+    if(!p){
+      activeProjHead.appendChild(el("div","empty-msg","오른쪽 [프로젝트 관리]에서 프로젝트를 만들고 클릭해 선택하세요."));
+      return;
+    }
+    var pct = projectProgress(p);
+    var name = el("div","active-proj-name");
+    name.appendChild(document.createTextNode(p.name));
+    name.appendChild(el("span","pct", pct === null ? "진척도 —" : "진척도 " + pct + "%"));
+    activeProjHead.appendChild(name);
+    var bar = el("div","pbar");
+    var fill = el("div","pfill");
+    fill.style.width = (pct === null ? 0 : pct) + "%";
+    bar.appendChild(fill);
+    activeProjHead.appendChild(bar);
+  }
+
+  // ---------- 리스트 탭 ----------
+  var addInput = document.getElementById("addInput");
+  var taskListEl = document.getElementById("taskList");
+
+  function addTask(){
+    var p = activeProject();
+    if(!p){ alert("먼저 프로젝트를 선택하세요."); return; }
+    var text = addInput.value.trim();
+    if(!text) return;
+    p.tasks.push(newNode(text));
+    addInput.value = "";
+    save(); renderAll();
+    addInput.focus();
+  }
+  document.getElementById("addBtn").addEventListener("click", addTask);
+  addInput.addEventListener("keydown", function(e){
+    if(e.key === "Enter"){ e.preventDefault(); addTask(); }
+  });
+
+  function renderTaskList(){
+    taskListEl.innerHTML = "";
+    var p = activeProject();
+    if(!p){
+      taskListEl.appendChild(el("div","empty-msg","프로젝트를 선택하면 리스트가 표시됩니다."));
+      return;
+    }
+    if(countPendingLeaves(p.tasks) === 0){
+      taskListEl.appendChild(el("div","empty-msg","할 일이 없습니다. 위에서 추가하세요."));
+      return;
+    }
+    renderNodes(p.tasks, 0);
+  }
+  function renderNodes(nodes, depth){
+    var p = activeProject();
+    nodes.forEach(function(task){
+      if(task.status !== "pending") return;
+      var row = el("div","task-row" + (checkedSet[task.id] ? " checked" : ""));
+      row.style.marginLeft = (depth*18) + "px";
+      var cb = el("input");
+      cb.type = "checkbox";
+      cb.checked = !!checkedSet[task.id];
+      cb.addEventListener("change", function(){
+        if(cb.checked){
+          checkedSet[task.id] = true;
+          // 체크하면 형제 그룹 맨 위로 고정
+          var loc = locate(p.tasks, task.id);
+          if(loc){ loc.arr.splice(loc.idx,1); loc.arr.unshift(task); }
+        }else{
+          delete checkedSet[task.id];
+        }
+        save(); renderAll();
+      });
+      var ti = el("input","task-text");
+      ti.type = "text";
+      ti.value = task.text;
+      ti.addEventListener("blur", function(){
+        var v = ti.value.trim();
+        task.text = v || task.text;
+        ti.value = task.text;
+        save();
+      });
+      ti.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); ti.blur(); }
+      });
+      row.appendChild(cb);
+      row.appendChild(ti);
+      if(task.nonProject) row.appendChild(el("span","np-badge","인서트"));
+      taskListEl.appendChild(row);
+      renderNodes(task.children, depth+1);
+    });
+  }
+
+  function moveSelectedIn(nodes, dir){
+    if(dir === -1){
+      for(var i=1;i<nodes.length;i++){
+        if(checkedSet[nodes[i].id] && !checkedSet[nodes[i-1].id]){
+          var t=nodes[i-1]; nodes[i-1]=nodes[i]; nodes[i]=t;
+        }
+      }
+    }else{
+      for(var j=nodes.length-2;j>=0;j--){
+        if(checkedSet[nodes[j].id] && !checkedSet[nodes[j+1].id]){
+          var t2=nodes[j+1]; nodes[j+1]=nodes[j]; nodes[j]=t2;
+        }
+      }
+    }
+    nodes.forEach(function(n){ moveSelectedIn(n.children, dir); });
+  }
+  document.getElementById("moveUpBtn").addEventListener("click", function(){
+    var p = activeProject(); if(!p) return;
+    moveSelectedIn(p.tasks, -1);
+    save(); renderAll();
+  });
+  document.getElementById("moveDownBtn").addEventListener("click", function(){
+    var p = activeProject(); if(!p) return;
+    moveSelectedIn(p.tasks, 1);
+    save(); renderAll();
+  });
+  function removeChecked(nodes){
+    for(var i=nodes.length-1;i>=0;i--){
+      if(checkedSet[nodes[i].id]) nodes.splice(i,1);
+      else removeChecked(nodes[i].children);
+    }
+  }
+  document.getElementById("deleteSelBtn").addEventListener("click", function(){
+    var p = activeProject(); if(!p) return;
+    var any = Object.keys(checkedSet).length > 0;
+    if(!any) return;
+    if(!confirm("선택한 항목을 하위 항목까지 삭제할까요?")) return;
+    removeChecked(p.tasks);
+    checkedSet = {};
+    sweep(p.tasks);
+    save(); renderAll();
+  });
+  document.getElementById("clearAllBtn").addEventListener("click", function(){
+    var p = activeProject(); if(!p) return;
+    if(countPendingLeaves(p.tasks) === 0) return;
+    if(!confirm("미완료 할 일을 전부 지울까요? 완료/포기 기록(히스토리)은 남습니다.")) return;
+    pruneFullyPending(p.tasks);
+    checkedSet = {};
+    sweep(p.tasks);
+    save(); renderAll();
+  });
+
+  // ---------- 실행 탭 ----------
+  var executeCard = document.getElementById("executeCard");
+
+  function renderExecute(){
+    executeCard.innerHTML = "";
+    var p = activeProject();
+    if(!p){
+      executeCard.appendChild(el("div","celebrate","프로젝트를 선택하세요."));
+      return;
+    }
+    var current = findActionable(p.tasks);
+    if(!current){
+      executeCard.appendChild(el("div","celebrate","🎉 지금 할 일이 없습니다."));
+      return;
+    }
+    executeCard.appendChild(el("div","execute-progress","남은 "+countPendingLeaves(p.tasks)+"개 중 1번째"));
+    var path = findPath(p.tasks, current.id, []);
+    if(path && path.length){
+      executeCard.appendChild(el("div","execute-path", path.join(" › ") + " ›"));
+    }
+    var txt = el("div","execute-task-text", current.text);
+    executeCard.appendChild(txt);
+
+    var actions = el("div","execute-actions");
+    var mk = function(cls, label, sub, onClick){
+      var b = el("button","act-btn "+cls);
+      var strong = el("span",null,label);
+      b.appendChild(strong);
+      if(sub) b.appendChild(el("small",null,sub));
+      b.addEventListener("click", onClick);
+      return b;
+    };
+    actions.appendChild(mk("act-a","A. 했음","지금 할 수 있고 했음", function(){ resolveCurrent(current,"done"); }));
+    actions.appendChild(mk("act-b","B. 현재 못함","같은 묶음의 맨 뒤로 미루기", function(){ postpone(current); }));
+    actions.appendChild(mk("act-c","C. 심리적 부담감","쪼개기", function(){ splitCurrent(current); }));
+    actions.appendChild(mk("act-d","D. 인서트 - 프로젝트","프로젝트 할 일을 지금 일 바로 앞에 끼워넣기", function(){ insertBefore(current, false); }));
+    actions.appendChild(mk("act-e","E. 인서트 - 비프로젝트","딴짓·일상 등을 바로 앞에 끼워넣기 (진척도 미포함)", function(){ insertBefore(current, true); }));
+    actions.appendChild(mk("act-f","F. 포기","", function(){
+      if(confirm("이 항목을 포기할까요?")) resolveCurrent(current,"gaveup");
+    }));
+    executeCard.appendChild(actions);
+  }
+
+  function resolveCurrent(node, status){
+    var p = activeProject(); if(!p) return;
+    node.status = status;
+    node.completedAt = Date.now();
+    delete checkedSet[node.id];
+    sweep(p.tasks);
+    save(); renderAll();
+  }
+  function postpone(node){
+    var p = activeProject(); if(!p) return;
+    var loc = locate(p.tasks, node.id);
+    if(!loc) return;
+    loc.arr.splice(loc.idx,1);
+    loc.arr.push(node);
+    save(); renderAll();
+  }
+  function splitCurrent(node){
+    var p = activeProject(); if(!p) return;
+    openOvl("쪼개기","한 줄에 하나씩. Enter로 줄바꿈, 순서 자유롭게 수정 가능.", node.text, function(lines){
+      if(lines.length === 0) return;
+      node.children = lines.map(function(line){ return newNode(line, node.nonProject); });
+      save(); renderAll();
+    });
+  }
+  function insertBefore(node, nonProject){
+    var p = activeProject(); if(!p) return;
+    var title = nonProject ? "인서트 - 비프로젝트" : "인서트 - 프로젝트";
+    openOvl(title,"지금 일 바로 앞에 끼워넣습니다. 여러 줄이면 순서대로 모두 들어갑니다.","", function(lines){
+      if(lines.length === 0) return;
+      var loc = locate(p.tasks, node.id);
+      if(!loc) return;
+      // 비프로젝트 부모 아래에 프로젝트 태스크는 넣을 수 없으므로 부모 성격을 따라감
+      var np = nonProject || (loc.owner ? !!loc.owner.nonProject : false);
+      var newNodes = lines.map(function(line){ return newNode(line, np); });
+      loc.arr.splice.apply(loc.arr, [loc.idx, 0].concat(newNodes));
+      save(); renderAll();
+    });
+  }
+
+  // ---------- 히스토리 탭 ----------
+  var historyView = document.getElementById("historyView");
+  function renderHistory(){
+    historyView.innerHTML = "";
+    var p = activeProject();
+    if(!p){
+      historyView.appendChild(el("div","empty-msg","프로젝트를 선택하세요."));
+      return;
+    }
+    var tree = el("div","h-tree");
+    var hasAny = renderHistNodes(tree, p.tasks);
+    if(!hasAny){
+      tree.appendChild(el("div","empty-msg","아직 기록이 없습니다."));
+    }
+    historyView.appendChild(tree);
+
+    var inserts = [];
+    collectResolvedNonProject(p.tasks, inserts);
+    if(inserts.length){
+      historyView.appendChild(el("div","h-insert-title","Insert"));
+      inserts.sort(function(a,b){ return (b.completedAt||0)-(a.completedAt||0); });
+      var box = el("div","h-tree");
+      inserts.forEach(function(n){
+        var row = el("div","h-node" + (n.status==="gaveup"?" h-gaveup":""));
+        row.appendChild(el("span",null, n.status==="done"?"☑":"❌"));
+        var t = el("span","h-text",n.text);
+        row.appendChild(t);
+        row.appendChild(el("span","h-time",formatTs(n.completedAt)));
+        box.appendChild(row);
+      });
+      historyView.appendChild(box);
+    }
+  }
+  function renderHistNodes(container, nodes){
+    var rendered = false;
+    nodes.forEach(function(n){
+      if(n.nonProject) return; // 비프로젝트는 Insert 섹션에서만
+      rendered = true;
+      var icon;
+      if(n.status === "done") icon = "☑";
+      else if(n.status === "gaveup") icon = "❌";
+      else if(n.children.length > 0) icon = "➡️";
+      else icon = "🔲";
+      var row = el("div","h-node" + (n.status==="gaveup"?" h-gaveup":""));
+      row.appendChild(el("span",null,icon));
+      row.appendChild(el("span","h-text",n.text));
+      if(n.completedAt) row.appendChild(el("span","h-time",formatTs(n.completedAt)));
+      container.appendChild(row);
+      if(n.children.length){
+        var kids = el("div","h-children");
+        renderHistNodes(kids, n.children);
+        if(kids.childNodes.length) container.appendChild(kids);
+      }
+    });
+    return rendered;
+  }
+
+  // ---------- 프로젝트 관리 ----------
+  var projInput = document.getElementById("projInput");
+  var projListEl = document.getElementById("projList");
+
+  function addProject(){
+    var name = projInput.value.trim();
+    if(!name) return;
+    var p = { id: uid(), name: name, tasks: [], inserts: [] };
+    state.projects.push(p);
+    if(!state.activeProjectId) state.activeProjectId = p.id;
+    projInput.value = "";
+    save(); renderAll();
+    projInput.focus();
+  }
+  document.getElementById("projAddBtn").addEventListener("click", addProject);
+  projInput.addEventListener("keydown", function(e){
+    if(e.key === "Enter"){ e.preventDefault(); addProject(); }
+  });
+
+  function renderProjects(){
+    projListEl.innerHTML = "";
+    if(state.projects.length === 0){
+      projListEl.appendChild(el("div","empty-msg","아직 프로젝트가 없습니다.\n위에서 프로젝트를 만들어보세요."));
+      return;
+    }
+    state.projects.forEach(function(p){
+      var wrap = el("div");
+      var row = el("div","proj-row" + (p.id === state.activeProjectId ? " active" : ""));
+      row.addEventListener("click", function(){
+        state.activeProjectId = p.id;
+        checkedSet = {};
+        save(); renderAll();
+      });
+
+      var name = el("input","proj-name");
+      name.type = "text";
+      name.value = p.name;
+      name.addEventListener("click", function(e){ e.stopPropagation(); });
+      name.addEventListener("blur", function(){
+        var v = name.value.trim();
+        p.name = v || p.name;
+        name.value = p.name;
+        save(); renderActiveHead();
+      });
+      name.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); name.blur(); }
+      });
+
+      var pct = projectProgress(p);
+      var pctEl = el("span","proj-pct", pct === null ? "—" : pct + "%");
+
+      var delBtn = el("button","btn btn-danger","삭제");
+      delBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(!confirm("프로젝트 \""+p.name+"\"와 그 리스트·히스토리를 전부 삭제할까요?")) return;
+        state.projects = state.projects.filter(function(x){ return x.id !== p.id; });
+        if(state.activeProjectId === p.id){
+          state.activeProjectId = state.projects.length ? state.projects[0].id : null;
+          checkedSet = {};
+        }
+        save(); renderAll();
+      });
+
+      row.appendChild(name);
+      row.appendChild(pctEl);
+      row.appendChild(delBtn);
+      wrap.appendChild(row);
+
+      var bar = el("div","proj-pbar");
+      bar.style.margin = "0 4px 10px";
+      var fill = el("div","pfill");
+      fill.style.width = (pct === null ? 0 : pct) + "%";
+      bar.appendChild(fill);
+      wrap.appendChild(bar);
+
+      projListEl.appendChild(wrap);
+    });
+  }
+
+  // ---------- 백업 저장 / 불러오기 ----------
+  document.getElementById("exportBtn").addEventListener("click", function(){
+    var data = { version: 2, exportedAt: new Date().toISOString(), data: state };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var d = new Date();
+    var p = function(n){ return n<10?"0"+n:""+n; };
+    a.href = url;
+    a.download = "todo-backup-" + d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes()) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+  var importInput = document.getElementById("importInput");
+  document.getElementById("importBtn").addEventListener("click", function(){ importInput.click(); });
+  importInput.addEventListener("change", function(){
+    var file = importInput.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(data.version === 2 && data.data && data.data.projects){
+          if(!confirm("백업 파일로 전체 데이터를 덮어씁니다. 계속할까요?")){ importInput.value=""; return; }
+          state = data.data;
+          checkedSet = {};
+          state.projects.forEach(function(p){ sweep(p.tasks); });
+          save(); renderAll();
+          alert("불러오기 완료.");
+        }else{
+          alert("지원하지 않는 백업 파일 형식입니다.");
+        }
+      }catch(e){
+        alert("파일을 읽을 수 없습니다: " + e.message);
+      }
+      importInput.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- 렌더 ----------
+  function renderAll(){
+    renderActiveHead();
+    renderTaskList();
+    renderExecute();
+    renderHistory();
+    renderProjects();
+  }
+
+  load();
+  state.projects.forEach(function(p){ sweep(p.tasks); });
+  renderAll();
+})();
+</script>
+</body>
+</html>
