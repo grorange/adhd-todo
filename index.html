@@ -180,6 +180,13 @@
   .overlay-box textarea:focus{outline:2px solid var(--accent);}
   .overlay-actions{display:flex;gap:8px;margin-top:14px;}
   .overlay-actions .btn{flex:1;}
+
+  .sync-label{font-size:12px;color:var(--sub);display:block;margin:0 0 4px;}
+  .sync-input{
+    width:100%;padding:11px;font-size:14px;border:1px solid var(--line);
+    border-radius:10px;background:#fff;color:var(--ink);margin-bottom:12px;
+  }
+  .sync-input:focus{outline:2px solid var(--accent);}
 </style>
 </head>
 <body>
@@ -191,6 +198,9 @@
       <button class="btn btn-neutral" id="exportBtn">💾 백업 저장</button>
       <button class="btn btn-neutral" id="importBtn">📂 불러오기</button>
       <input type="file" id="importInput" accept="application/json,.json" style="display:none">
+      <button class="btn btn-neutral" id="syncSettingsBtn">⚙️ 동기화 설정</button>
+      <button class="btn btn-ghost" id="syncUpBtn">☁️ 올리기</button>
+      <button class="btn btn-ghost" id="syncDownBtn">⬇️ 받아오기</button>
     </div>
   </div>
 
@@ -247,6 +257,22 @@
     <div class="overlay-actions">
       <button class="btn btn-ghost" id="ovlCancelBtn">취소</button>
       <button class="btn btn-accent" id="ovlConfirmBtn">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 동기화 설정 오버레이 -->
+<div class="overlay" id="syncOvl">
+  <div class="overlay-box">
+    <h2>동기화 설정 (GitHub Gist)</h2>
+    <p class="hint">본인 GitHub 계정의 Personal Access Token(gist 권한)을 입력하세요. 이 브라우저에만 저장되고, GitHub API 호출 외에는 어디로도 전송되지 않습니다. Gist ID는 처음 ☁️ 올리기를 하면 자동으로 채워집니다 — 다른 기기에서는 그 ID를 여기에 붙여넣어야 같은 데이터를 받아올 수 있습니다.</p>
+    <label class="sync-label">Personal Access Token</label>
+    <input type="password" id="syncTokenInput" class="sync-input" placeholder="ghp_...">
+    <label class="sync-label">Gist ID (비워두면 처음 올릴 때 자동 생성)</label>
+    <input type="text" id="syncGistIdInput" class="sync-input" placeholder="예: a1b2c3d4e5f6...">
+    <div class="overlay-actions">
+      <button class="btn btn-ghost" id="syncOvlCancelBtn">취소</button>
+      <button class="btn btn-accent" id="syncOvlSaveBtn">저장</button>
     </div>
   </div>
 </div>
@@ -862,6 +888,105 @@
       importInput.value = "";
     };
     reader.readAsText(file);
+  });
+
+  // ---------- 동기화 (GitHub Gist) ----------
+  var SYNC_TOKEN_KEY = "adhd_todo_sync_token";
+  var SYNC_GISTID_KEY = "adhd_todo_sync_gistid";
+  var GIST_FILENAME = "adhd-todo-backup.json";
+
+  function getSyncToken(){ return localStorage.getItem(SYNC_TOKEN_KEY) || ""; }
+  function getSyncGistId(){ return localStorage.getItem(SYNC_GISTID_KEY) || ""; }
+  function setSyncToken(v){ if(v) localStorage.setItem(SYNC_TOKEN_KEY, v); else localStorage.removeItem(SYNC_TOKEN_KEY); }
+  function setSyncGistId(v){ if(v) localStorage.setItem(SYNC_GISTID_KEY, v); else localStorage.removeItem(SYNC_GISTID_KEY); }
+
+  var syncOvl = document.getElementById("syncOvl");
+  var syncTokenInput = document.getElementById("syncTokenInput");
+  var syncGistIdInput = document.getElementById("syncGistIdInput");
+  document.getElementById("syncSettingsBtn").addEventListener("click", function(){
+    syncTokenInput.value = getSyncToken();
+    syncGistIdInput.value = getSyncGistId();
+    syncOvl.classList.add("active");
+  });
+  document.getElementById("syncOvlCancelBtn").addEventListener("click", function(){ syncOvl.classList.remove("active"); });
+  document.getElementById("syncOvlSaveBtn").addEventListener("click", function(){
+    setSyncToken(syncTokenInput.value.trim());
+    setSyncGistId(syncGistIdInput.value.trim());
+    syncOvl.classList.remove("active");
+    alert("저장했습니다.");
+  });
+  syncOvl.addEventListener("click", function(e){ if(e.target === syncOvl) syncOvl.classList.remove("active"); });
+
+  function withBusy(btn, busyText, fn){
+    var origText = btn.textContent;
+    btn.disabled = true; btn.textContent = busyText;
+    var restore = function(){ btn.disabled = false; btn.textContent = origText; };
+    fn(restore);
+  }
+
+  document.getElementById("syncUpBtn").addEventListener("click", function(){
+    var btn = this;
+    var token = getSyncToken();
+    if(!token){ alert("먼저 ⚙️ 동기화 설정에서 토큰을 입력하세요."); return; }
+    withBusy(btn, "올리는 중...", function(restore){
+      var payload = { version: 2, exportedAt: new Date().toISOString(), data: state };
+      var gistId = getSyncGistId();
+      var url = gistId ? ("https://api.github.com/gists/" + gistId) : "https://api.github.com/gists";
+      var method = gistId ? "PATCH" : "POST";
+      var body = { description: "ADHD 투두리스트 백업 (자동 생성)", public: false, files: {} };
+      body.files[GIST_FILENAME] = { content: JSON.stringify(payload, null, 2) };
+      fetch(url, {
+        method: method,
+        headers: { "Authorization": "token " + token, "Accept": "application/vnd.github+json" },
+        body: JSON.stringify(body)
+      }).then(function(res){
+        if(!res.ok) return res.json().then(function(e){ throw new Error(res.status + " " + (e.message||"")); });
+        return res.json();
+      }).then(function(data){
+        var isNew = !gistId;
+        if(isNew) setSyncGistId(data.id);
+        restore();
+        alert("올리기 완료." + (isNew ? "\n\n다른 기기에서 동기화하려면 동기화 설정에 이 Gist ID를 입력하세요:\n" + data.id : ""));
+      }).catch(function(err){
+        restore();
+        alert("올리기 실패: " + err.message + "\n토큰(gist 권한) 또는 Gist ID를 확인하세요.");
+      });
+    });
+  });
+
+  document.getElementById("syncDownBtn").addEventListener("click", function(){
+    var btn = this;
+    var token = getSyncToken();
+    var gistId = getSyncGistId();
+    if(!gistId){ alert("먼저 ⚙️ 동기화 설정에서 Gist ID를 입력하세요.\n(다른 기기에서 먼저 ☁️ 올리기를 하면 ID가 생성됩니다)"); return; }
+    withBusy(btn, "받아오는 중...", function(restore){
+      var headers = { "Accept": "application/vnd.github+json" };
+      if(token) headers["Authorization"] = "token " + token;
+      fetch("https://api.github.com/gists/" + gistId, { headers: headers })
+        .then(function(res){
+          if(!res.ok) return res.json().then(function(e){ throw new Error(res.status + " " + (e.message||"")); });
+          return res.json();
+        })
+        .then(function(gist){
+          var file = gist.files && gist.files[GIST_FILENAME];
+          if(!file) throw new Error("백업 파일을 찾을 수 없습니다.");
+          var payload = JSON.parse(file.content);
+          if(!(payload.version === 2 && payload.data && payload.data.projects)){
+            throw new Error("백업 형식이 올바르지 않습니다.");
+          }
+          if(!confirm("클라우드 데이터로 이 기기의 데이터를 덮어씁니다. 계속할까요?")){ restore(); return; }
+          state = payload.data;
+          checkedSet = {};
+          state.projects.forEach(function(p){ sweep(p.tasks); });
+          save(); renderAll();
+          restore();
+          alert("받아오기 완료.");
+        })
+        .catch(function(err){
+          restore();
+          alert("받아오기 실패: " + err.message);
+        });
+    });
   });
 
   // ---------- 렌더 ----------
