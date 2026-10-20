@@ -278,6 +278,37 @@
   .overlay-box{box-shadow:0 24px 100px #20283e30;border-radius:24px;}
   @media(max-width:900px){.columns.manager-open{grid-template-columns:minmax(0,1fr);}.project-manager{grid-row:1;}}
   @media(max-width:520px){.wrap{padding:20px 12px 60px;}.col-card{padding:18px 14px;border-radius:18px;}.execute-actions{grid-template-columns:repeat(2,minmax(0,1fr));}.act-d,.act-e{grid-column:1 / -1;}.topbar-actions{gap:6px;}.topbar-actions .btn{font-size:11px;padding:9px;}.save-note{width:100%;}.act-btn{padding:14px;}}
+
+  :root{--ui-width:1280px;--ui-space:1;}
+  .wrap{max-width:var(--ui-width);container-type:inline-size;padding-top:calc(32px * var(--ui-space));}
+  .topbar{margin-bottom:calc(26px * var(--ui-space));}
+  .columns{gap:calc(16px * var(--ui-space));}
+  .col-card{padding:calc(24px * var(--ui-space));}
+  .project-manager:not([open]){padding:calc(16px * var(--ui-space)) calc(24px * var(--ui-space));}
+  .tabs{margin-top:calc(22px * var(--ui-space));margin-bottom:calc(14px * var(--ui-space));}
+  .tab-btn{padding:calc(12px * var(--ui-space)) 5px;}
+  .project-chips{gap:calc(8px * var(--ui-space));margin-bottom:calc(18px * var(--ui-space));}
+  .project-chip{padding:calc(10px * var(--ui-space)) 14px;}
+  .task-list{gap:calc(10px * var(--ui-space));}
+  .task-row{padding:calc(12px * var(--ui-space)) 8px;}
+  .execute-card{padding-top:calc(22px * var(--ui-space));}
+  .execute-task-text{margin:calc(12px * var(--ui-space)) 0;}
+  .execute-next{margin-bottom:calc(30px * var(--ui-space));}
+  .execute-actions{gap:calc(10px * var(--ui-space));}
+  .act-btn{padding:calc(17px * var(--ui-space));gap:calc(5px * var(--ui-space));}
+  .proj-row{padding:calc(10px * var(--ui-space));margin-bottom:calc(7px * var(--ui-space));}
+  .view-settings{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px;}
+  .view-settings[hidden]{display:none;}
+  .view-settings-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .view-presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .view-presets [aria-pressed="true"]{background:var(--accent);color:#fff;}
+  .view-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;}
+  .view-controls label{font-size:14px;font-weight:600;}
+  .view-controls output{float:right;color:var(--accent);}
+  .view-controls input{display:block;width:100%;margin:14px 0;accent-color:var(--accent);}
+  .view-controls span{display:block;font-size:12px;font-weight:400;color:var(--sub);line-height:1.5;}
+  @container(max-width:900px){.columns.manager-open{grid-template-columns:minmax(0,1fr);}.project-manager{grid-row:1;}}
+  @media(max-width:520px){.col-card{padding:calc(18px * var(--ui-space)) calc(14px * var(--ui-space));}.act-btn{padding:calc(14px * var(--ui-space));}.view-controls{grid-template-columns:1fr;gap:18px;}}
 </style>
 </head>
 <body>
@@ -286,6 +317,7 @@
     <h1>쪼개라! 투두리스트</h1>
     <div class="topbar-actions">
       <span class="save-note">입력 시 자동 저장됨</span>
+      <button class="btn btn-neutral" id="viewSettingsBtn" aria-expanded="false" aria-controls="viewSettings">화면 설정</button>
       <button class="btn btn-neutral" id="exportBtn">💾 백업 저장</button>
       <button class="btn btn-neutral" id="importBtn">📂 불러오기</button>
       <input type="file" id="importInput" accept="application/json,.json" style="display:none">
@@ -294,6 +326,21 @@
       <button class="btn btn-ghost" id="syncDownBtn">⬇️ 받아오기</button>
     </div>
   </div>
+
+  <section id="viewSettings" class="view-settings" hidden aria-label="화면 설정">
+    <div class="view-settings-head"><strong>화면 설정</strong><button class="btn btn-neutral" id="viewSettingsClose">닫기</button></div>
+    <p class="proj-hint">움직이는 즉시 화면에 적용됩니다. 설정은 이 브라우저에 자동 저장됩니다.</p>
+    <div class="view-presets" aria-label="화면 프리셋">
+      <button class="btn btn-neutral" data-view-preset="compact">촘촘하게</button>
+      <button class="btn btn-neutral" data-view-preset="balanced">적당하게</button>
+      <button class="btn btn-neutral" data-view-preset="relaxed">여유롭게</button>
+      <button class="btn btn-ghost" id="viewSettingsReset">기본값 복원</button>
+    </div>
+    <div class="view-controls">
+      <label for="viewWidth">인터페이스 너비 <output id="viewWidthValue" for="viewWidth"></output><input id="viewWidth" type="range" min="680" max="1600" step="20"><span>좁게 ↔ 넓게 · 작은 화면에서는 화면 너비에 맞춰집니다.</span></label>
+      <label for="viewDensity">항목 간격 <output id="viewDensityValue" for="viewDensity"></output><input id="viewDensity" type="range" min="50" max="120" step="5"><span>촘촘하게 ↔ 여유롭게 · 목록, 버튼, 카드의 여백을 함께 조절합니다.</span></label>
+    </div>
+  </section>
 
   <div class="columns" id="workspace">
     <!-- 1칼럼: 진행중 프로젝트 -->
@@ -374,6 +421,57 @@
   "use strict";
 
   var STORAGE_KEY = "adhd_todo_v2";
+  var VIEW_KEY = "adhd_todo_view_settings";
+  var viewPresets = {compact:{width:960,density:60}, balanced:{width:1120,density:80}, relaxed:{width:1280,density:100}};
+  var viewSettings = {width:1280,density:100};
+  try{
+    var storedView = JSON.parse(localStorage.getItem(VIEW_KEY));
+    if(storedView && typeof storedView === "object"){
+      if(Number.isFinite(storedView.width)) viewSettings.width = Math.max(680,Math.min(1600,Math.round(storedView.width/20)*20));
+      if(Number.isFinite(storedView.density)) viewSettings.density = Math.max(50,Math.min(120,Math.round(storedView.density/5)*5));
+    }
+  }catch(e){}
+  var viewPanel = document.getElementById("viewSettings");
+  var viewButton = document.getElementById("viewSettingsBtn");
+  var viewWidth = document.getElementById("viewWidth");
+  var viewDensity = document.getElementById("viewDensity");
+  function applyViewSettings(){
+    document.documentElement.style.setProperty("--ui-width",viewSettings.width+"px");
+    document.documentElement.style.setProperty("--ui-space",String(viewSettings.density/100));
+    viewWidth.value = viewSettings.width;
+    viewDensity.value = viewSettings.density;
+    document.getElementById("viewWidthValue").textContent = viewSettings.width+" px";
+    document.getElementById("viewDensityValue").textContent = viewSettings.density+"%";
+    document.querySelectorAll("[data-view-preset]").forEach(function(btn){
+      var preset = viewPresets[btn.dataset.viewPreset];
+      btn.setAttribute("aria-pressed",String(preset.width===viewSettings.width && preset.density===viewSettings.density));
+    });
+  }
+  function saveViewSettings(){
+    applyViewSettings();
+    try{localStorage.setItem(VIEW_KEY,JSON.stringify(viewSettings));}catch(e){}
+  }
+  viewButton.addEventListener("click",function(){
+    viewPanel.hidden = !viewPanel.hidden;
+    viewButton.setAttribute("aria-expanded",String(!viewPanel.hidden));
+  });
+  document.getElementById("viewSettingsClose").addEventListener("click",function(){
+    viewPanel.hidden = true;
+    viewButton.setAttribute("aria-expanded","false");
+    viewButton.focus();
+  });
+  viewWidth.addEventListener("input",function(){viewSettings.width=Number(viewWidth.value);saveViewSettings();});
+  viewDensity.addEventListener("input",function(){viewSettings.density=Number(viewDensity.value);saveViewSettings();});
+  document.querySelectorAll("[data-view-preset]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var preset=viewPresets[btn.dataset.viewPreset];
+      viewSettings={width:preset.width,density:preset.density};saveViewSettings();
+    });
+  });
+  document.getElementById("viewSettingsReset").addEventListener("click",function(){
+    viewSettings={width:1280,density:100};saveViewSettings();
+  });
+  applyViewSettings();
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
   function el(tag, cls, text){
