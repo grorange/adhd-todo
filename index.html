@@ -260,7 +260,7 @@
   .execute-path{font-size:14px;}
   .execute-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
   .act-btn{flex-direction:column;align-items:flex-start;gap:5px;padding:17px;transition:filter .15s,transform .15s;}
-  .act-a,.act-f{grid-column:1 / -1;}
+  .act-c,.act-f{grid-column:1 / -1;}
   .act-a{background:var(--accent);color:white;}
   .act-btn:hover,.btn:hover{filter:brightness(.97);}
   button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px;}
@@ -277,7 +277,7 @@
   .proj-row .proj-name{text-align:left;cursor:pointer;overflow-wrap:anywhere;flex-basis:100px;}
   .overlay-box{box-shadow:0 24px 100px #20283e30;border-radius:24px;}
   @media(max-width:900px){.columns.manager-open{grid-template-columns:minmax(0,1fr);}.project-manager{grid-row:1;}}
-  @media(max-width:520px){.wrap{padding:20px 12px 60px;}.col-card{padding:18px 14px;border-radius:18px;}.execute-actions{grid-template-columns:1fr;}.topbar-actions{gap:6px;}.topbar-actions .btn{font-size:11px;padding:9px;}.save-note{width:100%;}.act-btn{padding:14px;}}
+  @media(max-width:520px){.wrap{padding:20px 12px 60px;}.col-card{padding:18px 14px;border-radius:18px;}.execute-actions{grid-template-columns:repeat(2,minmax(0,1fr));}.act-d,.act-e{grid-column:1 / -1;}.topbar-actions{gap:6px;}.topbar-actions .btn{font-size:11px;padding:9px;}.save-note{width:100%;}.act-btn{padding:14px;}}
 </style>
 </head>
 <body>
@@ -929,8 +929,8 @@
       return b;
     };
     actions.appendChild(mk("act-a","A. 했음","지금 할 수 있고 했음", function(){ resolveCurrent(current,"done"); }));
-    actions.appendChild(mk("act-b","B. 현재 못함","같은 묶음의 맨 뒤로 미루기", function(){ postpone(current); }));
-    actions.appendChild(mk("act-c","C. 심리적 부담감","쪼개기", function(){ splitCurrent(current); }));
+    actions.appendChild(mk("act-b","B. 지금 못함","같은 묶음의 맨 뒤로 미루기", function(){ postpone(current); }));
+    actions.appendChild(mk("act-c","C. 쪼개기","부담스러운 일을 작은 단계로 나누기", function(){ splitCurrent(current); }));
     actions.appendChild(mk("act-d","D. 프로젝트 · 앞에 삽입","지금 일 바로 앞에 끼워넣기", function(){ insertRelative(current, false, false); }));
     actions.appendChild(mk("act-d","E. 프로젝트 · 뒤에 삽입","지금 일 바로 다음에 끼워넣기", function(){ insertRelative(current, false, true); }));
     actions.appendChild(mk("act-e","F. 비프로젝트 · 앞에 삽입","딴짓을 바로 앞에 · 진척도 미포함", function(){ insertRelative(current, true, false); }));
