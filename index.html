@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ADHD+ASD 천재의 투두리스트</title>
+<title>쪼개라! 투두리스트</title>
 <style>
   :root{
     --bg:#f4f1ea;
@@ -235,12 +235,55 @@
   .routine-log{margin-top:16px;font-size:12.5px;color:var(--sub);}
   .routine-log-title{font-size:13px;font-weight:700;color:var(--teal);margin:0 0 6px;padding-top:12px;border-top:1px dashed var(--line);}
   .routine-log-row{padding:2px 0;}
+
+  :root{--bg:#f4f6fb;--ink:#20283e;--sub:#69748b;--line:#e1e6f0;--accent:#635bda;--accent-soft:#eeedff;--purple:#635bda;--purple-soft:#eeedff;}
+  body{background:radial-gradient(ellipse at top left,#ececff,transparent 55%),var(--bg);}
+  .wrap{max-width:1280px;padding-top:32px;}
+  .topbar{margin-bottom:26px;}
+  .topbar h1{font-size:26px;letter-spacing:-1px;}
+  .columns{grid-template-columns:minmax(0,1fr);}
+  .columns.manager-open{grid-template-columns:minmax(0,1fr) minmax(300px,.55fr);}
+  .col-card{padding:24px;border-radius:24px;box-shadow:0 12px 40px #29396b08;min-width:0;}
+  .project-manager:not([open]){padding:16px 24px;}
+  .project-manager summary{cursor:pointer;list-style:none;margin:0;user-select:none;}
+  .project-manager[open] summary{margin-bottom:18px;}
+  .summary-hint{margin-left:auto;font-size:11px;color:var(--sub);font-weight:400;}
+  .project-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+  .project-chip{border:1px solid var(--line);background:#fff;color:var(--sub);padding:10px 17px;border-radius:999px;font:inherit;font-size:14px;cursor:pointer;overflow-wrap:anywhere;max-width:100%;}
+  .project-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 12px #635bda25;}
+  .tabs{margin-top:22px;padding:6px;background:#f1f3f9;border:0;}
+  .tab-btn{padding:12px 5px;}
+  .tab-btn.active{background:#fff;color:var(--accent);box-shadow:0 2px 8px #29396b10;}
+  .execute-card{padding:22px 0 0;}
+  .execute-task-text{font-size:clamp(24px,3vw,34px);letter-spacing:-.7px;margin:12px 0;}
+  .execute-next{color:var(--sub);font-size:14px;margin:0 0 30px;overflow-wrap:anywhere;}
+  .execute-path{font-size:14px;}
+  .execute-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .act-btn{flex-direction:column;align-items:flex-start;gap:5px;padding:17px;transition:filter .15s,transform .15s;}
+  .act-a,.act-f{grid-column:1 / -1;}
+  .act-a{background:var(--accent);color:white;}
+  .act-btn:hover,.btn:hover{filter:brightness(.97);}
+  button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px;}
+  .task-list{gap:10px;overflow-x:auto;padding:5px 3px 16px;}
+  .task-row{position:relative;padding:12px 8px;min-width:245px;transition:background .12s,border-color .12s;}
+  .drag-handle{font-size:18px;padding:4px 7px;}
+  .row-delete{opacity:.65;}
+  .drop-inside{background:var(--accent-soft);border:2px solid var(--accent);}
+  .drop-before:before,.drop-after:after{content:"";position:absolute;left:0;right:0;height:4px;background:var(--accent);border-radius:4px;z-index:2;}
+  .drop-before:before{top:-7px;}.drop-after:after{bottom:-7px;}
+  .task-row[data-drop-label] .task-text{padding-right:12px;}
+  .task-row[data-drop-label]:not(.drop-after):after,.drop-after:before{content:attr(data-drop-label);position:absolute;right:8px;top:-13px;background:var(--accent);color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;z-index:3;pointer-events:none;}
+  .proj-row{flex-wrap:wrap;gap:6px;padding:10px;}
+  .proj-row .proj-name{text-align:left;cursor:pointer;overflow-wrap:anywhere;flex-basis:100px;}
+  .overlay-box{box-shadow:0 24px 100px #20283e30;border-radius:24px;}
+  @media(max-width:900px){.columns.manager-open{grid-template-columns:minmax(0,1fr);}.project-manager{grid-row:1;}}
+  @media(max-width:520px){.wrap{padding:20px 12px 60px;}.col-card{padding:18px 14px;border-radius:18px;}.execute-actions{grid-template-columns:1fr;}.topbar-actions{gap:6px;}.topbar-actions .btn{font-size:11px;padding:9px;}.save-note{width:100%;}.act-btn{padding:14px;}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
-    <h1>ADHD+ASD 천재의 투두리스트</h1>
+    <h1>쪼개라! 투두리스트</h1>
     <div class="topbar-actions">
       <span class="save-note">입력 시 자동 저장됨</span>
       <button class="btn btn-neutral" id="exportBtn">💾 백업 저장</button>
@@ -252,7 +295,7 @@
     </div>
   </div>
 
-  <div class="columns">
+  <div class="columns" id="workspace">
     <!-- 1칼럼: 진행중 프로젝트 -->
     <div class="col-card">
       <h3 class="col-title"><span class="dot"></span>진행중 프로젝트</h3>
@@ -267,6 +310,7 @@
           <input type="text" id="addInput" placeholder="할 일 입력 후 Enter" maxlength="300">
           <button class="btn btn-accent" id="addBtn">추가</button>
         </div>
+        <p class="proj-hint">⋮⋮을 잡아 행 가운데에 놓으면 하위 할 일로, 위·아래 삽입선에 놓으면 같은 단계로 이동합니다.</p>
         <div class="task-list" id="taskList"></div>
       </div>
       <div class="panel active" id="panel-execute">
@@ -278,15 +322,15 @@
     </div>
 
     <!-- 2칼럼: 프로젝트 관리 -->
-    <div class="col-card">
-      <h3 class="col-title proj"><span class="dot"></span>프로젝트 관리</h3>
-      <p class="proj-hint">프로젝트를 만들고 이름 옆 ⋮⋮을 드래그해서 순서를 바꿀 수 있습니다. 왼쪽 상단 드롭다운에서 원하는 프로젝트를 선택하세요.</p>
+    <details class="col-card project-manager" id="projectManager">
+      <summary class="col-title proj"><span class="dot"></span>프로젝트 관리 <span class="summary-hint">펼치기 / 접기</span></summary>
+      <p class="proj-hint">프로젝트를 클릭하면 선택됩니다. 이름 변경 버튼으로 수정하고, ⋮⋮을 드래그해 순서를 바꾸세요.</p>
       <div class="add-row">
         <input type="text" id="projInput" placeholder="새 프로젝트 이름 후 Enter" maxlength="100">
         <button class="btn btn-accent" id="projAddBtn">추가</button>
       </div>
       <div id="projList"></div>
-    </div>
+    </details>
   </div>
 </div>
 
@@ -520,14 +564,14 @@
   }
   // 진척도: 노드별 재귀 가중 평균. 포기/비프로젝트는 계산에서 제외.
   function nodeProgress(n){
-    if(n.nonProject || n.status === "gaveup") return null;
-    if(n.status === "done") return 1;
+    if(n.status === "gaveup") return null;
+    if(n.status === "done" && !n.nonProject) return 1;
     var vals = [];
     n.children.forEach(function(c){
       var v = nodeProgress(c);
       if(v !== null) vals.push(v);
     });
-    if(vals.length === 0) return 0;
+    if(vals.length === 0) return n.nonProject ? null : 0;
     var s = 0; vals.forEach(function(v){ s += v; });
     return s / vals.length;
   }
@@ -620,27 +664,32 @@
 
   // ---------- 진행중 프로젝트 헤더 (드롭다운으로 선택) ----------
   var activeProjHead = document.getElementById("activeProjHead");
+  function selectProject(id){
+    if(state.activeProjectId !== id) pauseGlobalTimer();
+    state.activeProjectId = id;
+    save(); renderAll();
+  }
+  var projectManager = document.getElementById("projectManager");
+  projectManager.open = localStorage.getItem("adhd_todo_manager_open") === "true";
+  projectManager.addEventListener("toggle", function(){
+    document.getElementById("workspace").classList.toggle("manager-open", projectManager.open);
+    localStorage.setItem("adhd_todo_manager_open", String(projectManager.open));
+  });
   function renderActiveHead(){
     activeProjHead.innerHTML = "";
     if(state.projects.length === 0){
-      activeProjHead.appendChild(el("div","empty-msg","오른쪽 [프로젝트 관리]에서 프로젝트를 먼저 만들어보세요."));
+      activeProjHead.appendChild(el("div","empty-msg","[프로젝트 관리]를 펼쳐 첫 프로젝트를 만들어보세요."));
       return;
     }
-    var select = document.createElement("select");
-    select.className = "proj-select";
+    var chips = el("div","project-chips");
+    chips.setAttribute("aria-label", "진행중 프로젝트 선택");
     state.projects.forEach(function(p){
-      var opt = document.createElement("option");
-      opt.value = p.id;
-      opt.textContent = (p.isRoutine ? "🔁 " : "") + p.name;
-      if(p.id === state.activeProjectId) opt.selected = true;
-      select.appendChild(opt);
+      var chip = el("button","project-chip" + (p.id === state.activeProjectId ? " active" : ""), (p.isRoutine ? "🔁 " : "") + p.name);
+      chip.setAttribute("aria-pressed", String(p.id === state.activeProjectId));
+      chip.addEventListener("click", function(){ selectProject(p.id); });
+      chips.appendChild(chip);
     });
-    select.addEventListener("change", function(){
-      pauseGlobalTimer();
-      state.activeProjectId = select.value;
-      save(); renderAll();
-    });
-    activeProjHead.appendChild(select);
+    activeProjHead.appendChild(chips);
 
     var p = activeProject();
     if(!p) return;
@@ -722,47 +771,74 @@
     save(); renderAll();
   }
 
-  var taskDrag = null; // { nodes, index }
+  var taskDrag = null;
+  function clearDropHints(){
+    taskListEl.querySelectorAll(".drop-before,.drop-after,.drop-inside").forEach(function(row){
+      row.classList.remove("drop-before","drop-after","drop-inside");
+      row.removeAttribute("data-drop-label");
+    });
+  }
+  function dropMode(row, y){
+    var r = row.getBoundingClientRect();
+    var offset = y - r.top;
+    return offset < r.height * .24 ? "before" : (offset > r.height * .76 ? "after" : "inside");
+  }
+  function moveTask(sourceId, targetId, mode){
+    var p = activeProject();
+    if(!p || sourceId === targetId) return;
+    var from = locate(p.tasks, sourceId), target = locate(p.tasks, targetId);
+    if(!from || !target) return;
+    var moved = from.arr[from.idx], anchor = target.arr[target.idx];
+    if(locate(moved.children, targetId)) return;
+    pauseGlobalTimer();
+    from.arr.splice(from.idx, 1);
+    target = locate(p.tasks, targetId);
+    var destination = mode === "inside" ? anchor.children : target.arr;
+    var index = mode === "inside" ? destination.length : target.idx + (mode === "after" ? 1 : 0);
+    destination.splice(index, 0, moved);
+    sweep(p.tasks);
+    save(); renderAll();
+  }
   function renderNodes(nodes, depth){
     nodes.forEach(function(task, idx){
       if(task.status !== "pending") return;
       var row = el("div","task-row");
-      row.style.marginLeft = (depth*18) + "px";
-
+      row.style.marginLeft = (depth*20) + "px";
+      row.dataset.taskId = task.id;
       var handle = el("span","drag-handle","⋮⋮");
       handle.draggable = true;
-      handle.title = "드래그해서 순서 변경";
+      handle.title = "드래그: 가운데는 하위로, 삽입선은 같은 단계로";
       handle.addEventListener("dragstart", function(e){
-        taskDrag = { nodes: nodes, index: idx };
+        taskDrag = task.id;
         e.dataTransfer.effectAllowed = "move";
-        try{ e.dataTransfer.setData("text/plain", task.id); }catch(err){}
+        e.dataTransfer.setData("text/plain", task.id);
         row.classList.add("dragging");
       });
       handle.addEventListener("dragend", function(){
         taskDrag = null;
         row.classList.remove("dragging");
+        clearDropHints();
       });
       row.addEventListener("dragover", function(e){
-        if(!taskDrag || taskDrag.nodes !== nodes) return;
+        clearDropHints();
+        if(!taskDrag || taskDrag === task.id) return;
+        var p = activeProject(), source = locate(p.tasks, taskDrag);
+        if(!source || locate(source.arr[source.idx].children, task.id)) return;
         e.preventDefault();
-        row.classList.add("drag-over");
+        e.dataTransfer.dropEffect = "move";
+        var mode = dropMode(row, e.clientY);
+        row.classList.add("drop-" + mode);
+        row.dataset.dropLabel = mode === "inside" ? "하위 할 일로 넣기" : (mode === "before" ? "이 항목 앞에 넣기" : "이 항목 뒤에 넣기");
       });
-      row.addEventListener("dragleave", function(){ row.classList.remove("drag-over"); });
+      row.addEventListener("dragleave", function(e){
+        if(!row.contains(e.relatedTarget)) clearDropHints();
+      });
       row.addEventListener("drop", function(e){
         e.preventDefault();
-        row.classList.remove("drag-over");
-        if(!taskDrag || taskDrag.nodes !== nodes){ taskDrag = null; return; }
-        var from = taskDrag.index;
+        var source = taskDrag;
         taskDrag = null;
-        if(from === idx) return;
-        var rect = row.getBoundingClientRect();
-        var after = (e.clientY - rect.top) > rect.height / 2;
-        var to = idx + (after ? 1 : 0);
-        var moved = nodes[from];
-        nodes.splice(from, 1);
-        if(from < to) to -= 1;
-        nodes.splice(to, 0, moved);
-        save(); renderAll();
+        clearDropHints();
+        if(source) moveTask(source, task.id, dropMode(row, e.clientY));
       });
 
       var cb = el("input");
@@ -830,10 +906,18 @@
     executeCard.appendChild(el("div","execute-progress","남은 "+countPendingLeaves(p.tasks)+"개 중 1번째"));
     var path = findPath(p.tasks, current.id, []);
     if(path && path.length){
-      executeCard.appendChild(el("div","execute-path", path.join(" › ") + " ›"));
+      executeCard.appendChild(el("div","execute-path", path.join(" › ")));
     }
     var txt = el("div","execute-task-text", current.text);
     executeCard.appendChild(txt);
+    var queue = [];
+    (function collect(nodes){
+      nodes.forEach(function(n){
+        if(n.status !== "pending") return;
+        if(n.children.length) collect(n.children); else queue.push(n);
+      });
+    })(p.tasks);
+    executeCard.appendChild(el("div","execute-next", "Next: " + (queue[1] ? queue[1].text : "마지막 할 일이에요")));
 
     var actions = el("div","execute-actions");
     var mk = function(cls, label, sub, onClick){
@@ -847,9 +931,11 @@
     actions.appendChild(mk("act-a","A. 했음","지금 할 수 있고 했음", function(){ resolveCurrent(current,"done"); }));
     actions.appendChild(mk("act-b","B. 현재 못함","같은 묶음의 맨 뒤로 미루기", function(){ postpone(current); }));
     actions.appendChild(mk("act-c","C. 심리적 부담감","쪼개기", function(){ splitCurrent(current); }));
-    actions.appendChild(mk("act-d","D. 인서트 - 프로젝트","프로젝트 할 일을 지금 일 바로 앞에 끼워넣기", function(){ insertBefore(current, false); }));
-    actions.appendChild(mk("act-e","E. 인서트 - 비프로젝트","딴짓·일상 등을 바로 앞에 끼워넣기 (진척도 미포함)", function(){ insertBefore(current, true); }));
-    actions.appendChild(mk("act-f","F. 포기","", function(){
+    actions.appendChild(mk("act-d","D. 프로젝트 · 앞에 삽입","지금 일 바로 앞에 끼워넣기", function(){ insertRelative(current, false, false); }));
+    actions.appendChild(mk("act-d","E. 프로젝트 · 뒤에 삽입","지금 일 바로 다음에 끼워넣기", function(){ insertRelative(current, false, true); }));
+    actions.appendChild(mk("act-e","F. 비프로젝트 · 앞에 삽입","딴짓을 바로 앞에 · 진척도 미포함", function(){ insertRelative(current, true, false); }));
+    actions.appendChild(mk("act-e","G. 비프로젝트 · 뒤에 삽입","딴짓을 바로 다음에 · 진척도 미포함", function(){ insertRelative(current, true, true); }));
+    actions.appendChild(mk("act-f","H. 포기","이 할 일 내려놓기", function(){
       if(confirm("이 항목을 포기할까요?")) resolveCurrent(current,"gaveup");
     }));
     executeCard.appendChild(actions);
@@ -889,17 +975,16 @@
       save(); renderAll();
     });
   }
-  function insertBefore(node, nonProject){
+  function insertRelative(node, nonProject, after){
     var p = activeProject(); if(!p) return;
     var title = nonProject ? "인서트 - 비프로젝트" : "인서트 - 프로젝트";
-    openOvl(title,"지금 일 바로 앞에 끼워넣습니다. 여러 줄이면 순서대로 모두 들어갑니다.","", function(lines){
+    openOvl(title + (after ? " · 뒤에" : " · 앞에"),"지금 일 바로 " + (after ? "다음" : "앞") + "에 끼워넣습니다. 여러 줄은 입력한 순서대로 들어갑니다.","", function(lines){
       if(lines.length === 0) return;
       var loc = locate(p.tasks, node.id);
       if(!loc) return;
-      // 비프로젝트 부모 아래에 프로젝트 태스크는 넣을 수 없으므로 부모 성격을 따라감
-      var np = nonProject || (loc.owner ? !!loc.owner.nonProject : false);
+      var np = nonProject;
       var newNodes = lines.map(function(line){ return newNode(line, np); });
-      loc.arr.splice.apply(loc.arr, [loc.idx, 0].concat(newNodes));
+      loc.arr.splice.apply(loc.arr, [loc.idx + (after ? 1 : 0), 0].concat(newNodes));
       save(); renderAll();
     });
   }
@@ -950,7 +1035,10 @@
   function renderHistNodes(container, nodes){
     var rendered = false;
     nodes.forEach(function(n){
-      if(n.nonProject) return; // 비프로젝트는 Insert 섹션에서만
+      if(n.nonProject){
+        if(renderHistNodes(container, n.children)) rendered = true;
+        return;
+      }
       rendered = true;
       var icon;
       if(n.status === "done") icon = "☑️";
@@ -1046,18 +1134,17 @@
       });
       row.appendChild(handle);
 
-      var name = el("input","proj-name");
-      name.type = "text";
-      name.value = p.name;
-      name.addEventListener("click", function(e){ e.stopPropagation(); });
-      name.addEventListener("blur", function(){
-        var v = name.value.trim();
-        p.name = v || p.name;
-        name.value = p.name;
-        save(); renderActiveHead();
-      });
-      name.addEventListener("keydown", function(e){
-        if(e.key === "Enter"){ e.preventDefault(); name.blur(); }
+      var name = el("button","proj-name",p.name);
+      name.type = "button";
+      name.title = "프로젝트 선택";
+      var renameBtn = el("button","btn btn-neutral","이름 변경");
+      renameBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        var value = prompt("프로젝트 이름", p.name);
+        if(value !== null && value.trim()){
+          p.name = value.trim().slice(0,100);
+          save(); renderAll();
+        }
       });
 
       var pct = projectProgress(p);
@@ -1086,6 +1173,7 @@
 
       row.appendChild(name);
       row.appendChild(pctEl);
+      row.appendChild(renameBtn);
       row.appendChild(routineBtn);
       row.appendChild(delBtn);
       wrap.appendChild(row);
@@ -1254,6 +1342,8 @@
   }
 
   load();
+  if(!state.projects.length) projectManager.open = true;
+  document.getElementById("workspace").classList.toggle("manager-open", projectManager.open);
   finalizeAllRunning();
   state.projects.forEach(function(p){ sweep(p.tasks); });
   renderAll();
