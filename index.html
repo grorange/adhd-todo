@@ -317,6 +317,8 @@
     <h1>쪼개라! 투두리스트</h1>
     <div class="topbar-actions">
       <span class="save-note">입력 시 자동 저장됨</span>
+      <button class="btn btn-ghost" id="selftalkieSendBtn">SelfTalkie로 보내기 · 0건</button>
+      <button class="btn btn-neutral" id="selftalkieSettingsBtn">SelfTalkie 연결</button>
       <button class="btn btn-neutral" id="viewSettingsBtn" aria-expanded="false" aria-controls="viewSettings">화면 설정</button>
       <button class="btn btn-neutral" id="exportBtn">💾 백업 저장</button>
       <button class="btn btn-neutral" id="importBtn">📂 불러오기</button>
@@ -391,6 +393,22 @@
       <button class="btn btn-ghost" id="ovlCancelBtn">취소</button>
       <button class="btn btn-accent" id="ovlConfirmBtn">확인</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="selftalkieOvl" role="dialog" aria-modal="true" aria-labelledby="selftalkieTitle">
+  <div class="overlay-box" style="max-height:90vh;overflow:auto;">
+    <h2 id="selftalkieTitle">SelfTalkie 연결</h2>
+    <p class="hint">같은 PC에서 SelfTalkie를 실행하고, 설정 → 쪼개라 연결에서 코드를 복사하세요. 완료 시각에 맞는 블록으로 보내며, 기존 일기는 유지됩니다.</p>
+    <label class="sync-label" for="selftalkieToken">연결 코드</label>
+    <input class="sync-input" id="selftalkieToken" type="password" autocomplete="off" placeholder="SelfTalkie에서 복사한 코드">
+    <div class="overlay-actions">
+      <button class="btn btn-ghost" id="selftalkieTestBtn">저장하고 연결 확인</button>
+      <button class="btn btn-neutral" id="selftalkieCloseBtn">닫기</button>
+    </div>
+    <p id="selftalkieStatus" role="status" style="font-size:13px;line-height:1.6;"></p>
+    <p class="hint">이 기능을 추가한 뒤 완료·포기한 일부터 기록됩니다. 전송 실패 시 대기 목록에 남고, 다시 보내도 중복되지 않습니다. 처음 연결할 때 브라우저의 로컬 네트워크 접근을 허용해주세요.</p>
+    <div id="selftalkieQueue" style="font-size:12px;line-height:1.7;overflow-wrap:anywhere;"></div>
   </div>
 </div>
 
@@ -571,6 +589,7 @@
       if(raw){
         var p = JSON.parse(raw);
         state.projects = p.projects || [];
+        state.integrationEvents = p.integrationEvents || [];
         state.activeProjectId = p.activeProjectId || null;
         if(!state.activeProjectId && state.projects.length) state.activeProjectId = state.projects[0].id;
         return;
@@ -844,6 +863,7 @@
   }
   function completeNode(task){
     var p = activeProject(); if(!p) return;
+    var before = completionSnapshot(p);
     var ts = Date.now();
     (function markDone(n){
       n.status = "done";
@@ -853,6 +873,7 @@
       n.children.forEach(function(c){ if(c.status === "pending") markDone(c); });
     })(task);
     sweep(p.tasks);
+    recordCompletions(p, before);
     save(); renderAll();
     var m = randomFrom(CELEBRATE_MSGS);
     showAvatar(m.emoji, m.text);
@@ -1041,11 +1062,13 @@
 
   function resolveCurrent(node, status){
     var p = activeProject(); if(!p) return;
+    var before = completionSnapshot(p);
     pauseTimerNode(node);
     if(timerNodeId === node.id){ timerNodeId = null; timerProjectId = null; }
     node.status = status;
     node.completedAt = Date.now();
     sweep(p.tasks);
+    recordCompletions(p, before);
     save(); renderAll();
     if(status === "done"){
       var m = randomFrom(CELEBRATE_MSGS);
@@ -1430,8 +1453,124 @@
     });
   });
 
+  // Completion events are immutable snapshots; repeat routines get fresh event IDs.
+  function completionSnapshot(project){
+    var result = [];
+    (function walk(nodes, path, ids){
+      nodes.forEach(function(n){
+        result.push({node:n, id:n.id, status:n.status, path:path.slice(), ancestors:ids.slice()});
+        walk(n.children, path.concat(n.text), ids.concat(n.id));
+      });
+    })(project.tasks, [], []);
+    return result;
+  }
+  function recordCompletions(project, before){
+    var previous = {};
+    before.forEach(function(entry){ previous[entry.id] = entry.status; });
+    var changed = completionSnapshot(project).filter(function(entry){
+      return previous[entry.id] === "pending" && entry.node.status !== "pending";
+    });
+    var leaves = changed.filter(function(entry){return !entry.node.children.length;});
+    var records = leaves.map(function(entry){
+      var n = entry.node;
+      return {event:{id:typeof crypto.randomUUID === "function" ? crypto.randomUUID() : uid()+uid(),
+        projectId:project.id, projectName:project.name, taskId:n.id, text:n.text,
+        completedAt:n.completedAt, status:n.status, path:entry.path,
+        milestones:[], nonProject:!!n.nonProject}, sentAt:null};
+    });
+    changed.filter(function(entry){return entry.node.children.length;}).reverse().forEach(function(entry){
+      for(var i=leaves.length-1;i>=0;i--){
+        if(leaves[i].ancestors.indexOf(entry.id) < 0) continue;
+        var abandoned = (function hasAbandoned(n){return n.status === "gaveup" || n.children.some(hasAbandoned);})(entry.node);
+        records[i].event.milestones.push(entry.path.concat(entry.node.text).join(" › ") + " 마무리" + (abandoned ? " (포기한 항목 포함)" : ""));
+        break;
+      }
+    });
+    state.integrationEvents = (state.integrationEvents || []).concat(records);
+  }
+
+  var selftalkieTokenKey = "adhd_todo_selftalkie_token";
+  var selftalkieOverlay = document.getElementById("selftalkieOvl");
+  var selftalkieToken = document.getElementById("selftalkieToken");
+  var selftalkieStatus = document.getElementById("selftalkieStatus");
+  var selftalkieSending = false;
+  function renderSelftalkie(){
+    var events = state.integrationEvents || [];
+    var pending = events.filter(function(e){return !e.sentAt;});
+    var btn = document.getElementById("selftalkieSendBtn");
+    btn.textContent = selftalkieSending ? "SelfTalkie로 보내는 중…" : "SelfTalkie로 보내기 · " + pending.length + "건";
+    btn.disabled = selftalkieSending;
+    var queue = document.getElementById("selftalkieQueue");
+    queue.replaceChildren(el("strong",null,"전송 대기 " + pending.length + "건 · 전송 완료 " + (events.length-pending.length) + "건"));
+    events.slice(-20).reverse().forEach(function(item){
+      queue.appendChild(el("div",null,(item.sentAt ? "전송됨 · " : "대기 · ") + formatTs(item.event.completedAt) + " · " + item.event.text));
+    });
+  }
+  function openSelftalkie(){
+    selftalkieToken.value = localStorage.getItem(selftalkieTokenKey) || "";
+    selftalkieOverlay.classList.add("active");
+    renderSelftalkie();
+  }
+  function closeSelftalkie(){selftalkieOverlay.classList.remove("active");}
+  async function selftalkieRequest(path, body){
+    var token = localStorage.getItem(selftalkieTokenKey) || "";
+    if(!token) throw new Error("SelfTalkie 설정에서 연결 코드를 복사한 뒤 입력해주세요.");
+    var controller = new AbortController();
+    var timeout = setTimeout(function(){controller.abort();},10000);
+    try{
+      var response = await fetch("http://127.0.0.1:43129"+path, {
+        method:body ? "POST" : "GET", signal:controller.signal,
+        headers:body ? {"Authorization":"Bearer "+token,"Content-Type":"application/json"} : {"Authorization":"Bearer "+token},
+        body:body ? JSON.stringify(body) : undefined
+      });
+      var data = await response.json();
+      if(!response.ok || !data.ok) throw new Error(data.error || "수신기 응답을 확인할 수 없습니다.");
+      return data;
+    }catch(e){
+      if(e.name === "TypeError" || e.name === "AbortError") throw new Error("연결하지 못했습니다. 같은 PC에서 SelfTalkie를 실행하고, 브라우저의 로컬 네트워크 접근을 허용하세요. 대기 기록은 그대로 보관됩니다.");
+      throw e;
+    }finally{clearTimeout(timeout);}
+  }
+  document.getElementById("selftalkieSettingsBtn").addEventListener("click",openSelftalkie);
+  document.getElementById("selftalkieCloseBtn").addEventListener("click",closeSelftalkie);
+  selftalkieOverlay.addEventListener("click",function(e){if(e.target === selftalkieOverlay) closeSelftalkie();});
+  document.getElementById("selftalkieTestBtn").addEventListener("click",async function(){
+    var button = this;
+    localStorage.setItem(selftalkieTokenKey,selftalkieToken.value.trim());
+    button.disabled = true;
+    selftalkieStatus.textContent = "연결 확인 중…";
+    try{
+      var result = await selftalkieRequest("/health");
+      if(result.service !== "selftalkie-jjogaera") throw new Error("SelfTalkie 수신기가 아닙니다.");
+      selftalkieStatus.textContent = "연결되었습니다. 상단의 보내기 버튼으로 대기 기록을 보낼 수 있습니다.";
+    }catch(e){selftalkieStatus.textContent=e.message;}
+    finally{button.disabled=false;}
+  });
+  document.getElementById("selftalkieSendBtn").addEventListener("click",async function(){
+    if(selftalkieSending) return;
+    if(!localStorage.getItem(selftalkieTokenKey)){openSelftalkie();return;}
+    var pending = (state.integrationEvents || []).filter(function(e){return !e.sentAt;});
+    if(!pending.length){openSelftalkie();selftalkieStatus.textContent="보낼 새 기록이 없습니다.";return;}
+    selftalkieSending=true;renderSelftalkie();
+    var sent=0;
+    try{
+      for(var i=0;i<pending.length;i+=100){
+        var batch=pending.slice(i,i+100);
+        var result=await selftalkieRequest("/events",{events:batch.map(function(e){return e.event;})});
+        if(!Array.isArray(result.acceptedIds) || batch.some(function(e){return result.acceptedIds.indexOf(e.event.id)<0;})) throw new Error("수신 확인이 불완전합니다. 대기 기록을 다시 보내주세요.");
+        var ids=batch.map(function(e){return e.event.id;});
+        (state.integrationEvents || []).forEach(function(e){if(ids.indexOf(e.event.id)>=0)e.sentAt=Date.now();});
+        save();sent+=batch.length;
+      }
+      showAvatar("✓", "SelfTalkie에 " + sent + "건 기록했습니다.");
+      selftalkieStatus.textContent=sent+"건을 완료 시각에 맞춰 기록했습니다.";
+    }catch(e){openSelftalkie();selftalkieStatus.textContent=(sent ? sent+"건 전송 완료. " : "")+e.message;}
+    finally{selftalkieSending=false;renderSelftalkie();}
+  });
+
   // ---------- 렌더 ----------
   function renderAll(){
+    renderSelftalkie();
     renderActiveHead();
     renderTaskList();
     renderExecute();
