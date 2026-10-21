@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {receiveTaskNotes} from '../task-notes.mjs';
+import {normalizeLogs,stableId} from '../record-ids.mjs';
+const at=(h,m)=>new Date(2026,9,20,h,m).getTime();
+const event=(id,h,m)=>({id,taskId:id,projectId:'p',projectName:'Project',text:id,completedAt:at(h,m),status:'done'});
+let r=receiveTaskNotes({}, {events:[event('first',6,0)]}).records;
+let group=r.timelog.items[0];assert.equal(group.kind,'completion');assert.equal(group.start,group.stop);assert(group.start.includes('T06:00:00'));const groupId=group.id;
+r=receiveTaskNotes(r,{events:[event('third',6,9),event('second',6,3)]}).records;
+assert.equal(r.timelog.items.length,1);group=r.timelog.items[0];assert.equal(group.id,groupId);assert.equal(group.start,group.stop);assert(group.start.includes('T06:09:00'));assert.deepEqual(group.eventIds,['first','second','third']);
+r=receiveTaskNotes(r,{events:[event('fourth',6,11)]}).records;assert.equal(r.timelog.items.length,2);
+r=receiveTaskNotes(r,{events:[event('fifth',6,19)]}).records;assert.deepEqual(r.timelog.items.map(g=>g.eventIds.length),[3,2]);
+const running={...r,timer:{running:true,startIso:'2026-10-20T06:05:00',selectedActivityId:'exercise'}};
+const active=receiveTaskNotes(running,{events:[event('active',6,6)]}).records;assert.equal(active.timelog.items.length,2);assert.equal(active.jjogaera_events.values.active._groupId,undefined);
+const removed=structuredClone(r);removed.timelog.items=removed.timelog.items.filter(g=>g.id!==groupId);
+assert.equal(receiveTaskNotes(removed,{events:[event('first',6,0)]}).records.timelog.items.length,1);
+const source=[{start:'2026-10-20T01:00:00',stop:'2026-10-20T02:00:00',activityId:'a'}];assert.equal(normalizeLogs(source)[0].id,normalizeLogs(source)[0].id);assert.equal(normalizeLogs([{...source[0],id:'existing'}])[0].id,'existing');
+assert.equal(stableId('first'),'4881d841fb3d6697');
+console.log('PASS point markers, fixed ten-minute grouping, activity timer overlap avoidance, stable group IDs, idempotency and deleted-group replay');

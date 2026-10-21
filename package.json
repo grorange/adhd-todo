@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "esbuild cloud-sync.mjs --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=cloud-bundle.js",
-    "test": "node --test tests/sync-core.test.mjs tests/sync-session.test.mjs tests/task-notes.test.mjs",
+    "test": "node --test tests/sync-core.test.mjs tests/sync-session.test.mjs tests/task-notes.test.mjs tests/completion-groups.test.mjs",
     "test:rules": "node tests/security.test.mjs",
     "test:browser": "node tests/browser.cjs",
     "test:storage": "node tests/storage-compat.cjs"
