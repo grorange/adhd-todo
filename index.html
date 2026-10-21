@@ -1171,16 +1171,39 @@
     var m = randomFrom(CELEBRATE_MSGS);
     showAvatar(m.emoji, m.text);
   }
+  function projectVersion(project){
+    function ordered(value){if(Array.isArray(value))return value.map(ordered);if(value && typeof value==="object"){var out={};Object.keys(value).sort().forEach(function(k){out[k]=ordered(value[k]);});return out;}return value;}
+    return JSON.stringify(ordered(project));
+  }
+  function offerProjectUndo(before, expected, position){
+    var owner=state.cloudOwner,until=Date.now()+15000;
+    (function pause(nodes){nodes.forEach(function(n){pauseTimerNode(n);pause(n.children||[]);});})(before.tasks);
+    function restore(){
+      if(Date.now()>until)return {ok:false,error:"되돌릴 수 있는 시간이 지났어."};
+      var at=state.projects.findIndex(function(p){return p.id===before.id;});
+      if(owner!==state.cloudOwner || projectVersion(at<0?null:state.projects[at])!==expected)return {ok:false,error:"그 사이 프로젝트나 계정이 바뀌어서 안전하게 되돌릴 수 없어."};
+      if(at<0)state.projects.splice(Math.min(position,state.projects.length),0,before);else state.projects[at]=before;
+      save();renderAll();return {ok:true};
+    }
+    if(window.parent!==window && window.parent.__showDeletionUndo){window.parent.__showDeletionUndo(restore);return;}
+    var bar=el("div",null,"삭제했어. "),button=el("button",null,"되돌리기");
+    bar.setAttribute("role","status");bar.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10000;background:#293440;color:white;border-radius:16px;padding:12px 18px;font-size:13px";
+    button.style.cssText="margin-left:16px;border:0;background:transparent;color:#d8c4ff;cursor:pointer";bar.append(button);document.body.append(bar);
+    var expiry=setTimeout(function(){bar.remove();},15000);
+    button.onclick=function(){clearTimeout(expiry);var result=restore();if(result.ok)bar.remove();else{bar.textContent=result.error;setTimeout(function(){bar.remove();},6000);}};
+  }
   function deleteNode(task){
     var p = activeProject(); if(!p) return;
     var loc = locate(p.tasks, task.id);
     if(!loc) return;
+    var undoProject=structuredClone(p),undoPosition=state.projects.indexOf(p);
     loc.arr.splice(loc.idx, 1);
     if(timerNodeId && timerProjectId === p.id && !locate(p.tasks, timerNodeId)){
       timerNodeId = null; timerProjectId = null;
     }
     sweep(p.tasks);
     save(); renderAll();
+    offerProjectUndo(undoProject,projectVersion(p),undoPosition);
   }
 
   var taskDrag = null;
@@ -1614,12 +1637,14 @@
         dialog.append(title,message,cancel,remove);document.body.appendChild(dialog);
         dialog.addEventListener("close",function(){dialog.remove();});cancel.onclick=function(){dialog.close();};
         remove.onclick=function(){
+        var undoProject=structuredClone(p),undoPosition=state.projects.indexOf(p);
         if(timerProjectId === p.id){ timerNodeId = null; timerProjectId = null; }
         state.projects = state.projects.filter(function(x){ return x.id !== p.id; });
         if(state.activeProjectId === p.id){
           state.activeProjectId = state.projects.length ? state.projects[0].id : null;
         }
         save(); renderAll();
+        offerProjectUndo(undoProject,"null",undoPosition);
         dialog.close();
         };
         dialog.showModal();cancel.focus();
