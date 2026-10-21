@@ -39,6 +39,29 @@ service cloud.firestore {
       // Deletions are tombstones so offline devices cannot resurrect old records.
       allow delete: if false;
     }
+    match /users/{uid}/selftalkie/{item} {
+      function envelope() {
+        let d = request.resource.data;
+        return item.matches('^(rooms|profiles|activities|timelog|diary|mood|month_diary|day_tags|timer|checks|needs|jjogaera_events|chat_[A-Za-z0-9_.-]+|media_[A-Za-z0-9_.-]+)$')
+          && d.keys().hasOnly(['schema','value','revision','previous','updatedAt'])
+          && d.schema == 1 && (d.value == null || d.value is map)
+          && d.revision is int && d.revision > 0
+          && d.previous is list && d.updatedAt == request.time;
+      }
+      function history() {
+        let n = resource.data.previous.size();
+        let p = request.resource.data.previous;
+        return request.resource.data.revision == resource.data.revision + 1
+          && p.size() == (n < 3 ? n + 1 : 3)
+          && p[0] == {'revision': resource.data.revision, 'value': resource.data.value}
+          && (n < 1 || p[1] == resource.data.previous[0])
+          && (n < 2 || p[2] == resource.data.previous[1]);
+      }
+      allow read: if owner(uid);
+      allow create: if owner(uid) && envelope() && request.resource.data.revision == 1 && request.resource.data.previous.size() == 0;
+      allow update: if owner(uid) && envelope() && history();
+      allow delete: if false;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }
