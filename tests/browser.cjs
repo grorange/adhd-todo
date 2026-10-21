@@ -30,6 +30,7 @@ const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),
   await contexts[0].setOffline(false);
   await b.waitForFunction(()=>window.jjogaera.getState().projects[0]?.tasks[0]?.text==='오프라인 수정',{},{timeout:30000});
   assert.equal(await a.evaluate(()=>window.jjogaera.getState().projects[0].tasks[0].status),'done');
+  await b.locator('#viewSettingsBtn').click();
   await b.locator('[data-cloud-history]').click();
   await b.locator('#cloudHistory button').filter({hasText:'다른 창에서 수정'}).first().click();
   await a.waitForFunction(()=>window.jjogaera.getState().projects[0]?.tasks[0]?.text==='다른 창에서 수정',{},{timeout:20000});

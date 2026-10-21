@@ -327,35 +327,26 @@
   .task-pane .act-btn{padding:calc(13px * var(--ui-space));}
   .task-pane .execute-task-text{font-size:clamp(22px,2vw,30px);}
   @container(max-width:700px){#workspace,#workspace.manager-open{grid-template-columns:minmax(0,1fr);}}
+  .topbar{justify-content:flex-end;margin-bottom:8px;}
+  .topbar-actions{justify-content:flex-end;}
+  #workspace.single-pane{grid-template-columns:minmax(0,1fr);}
+  #rightPane[hidden]{display:none!important;}
+  .settings-tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+  .panel-mode{display:flex;gap:12px;align-items:center;margin:16px 0;}
+  .panel-mode select{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);}
+  #viewSettingsBtn{font-size:20px;line-height:1;}
+  #viewSettingsBtn[data-attention="true"]{color:#b45309;box-shadow:0 0 0 2px #fbbf24;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
-    <h1>쪼개라! 투두리스트</h1>
     <div class="topbar-actions">
-      <span class="save-note">입력 시 자동 저장됨</span>
-      <button class="btn btn-ghost" id="selftalkieSendBtn">SelfTalkie로 보내기 · 0건</button>
-      <button class="btn btn-neutral" id="selftalkieSettingsBtn">SelfTalkie 연결</button>
-      <button class="btn btn-neutral" id="viewSettingsBtn" aria-expanded="false" aria-controls="viewSettings">화면 설정</button>
-      <button class="btn btn-neutral" id="exportBtn">💾 백업 저장</button>
-      <button class="btn btn-neutral" id="importBtn">📂 불러오기</button>
-      <input type="file" id="importInput" accept="application/json,.json" style="display:none">
-      <details><summary class="btn btn-ghost">기존 Gist 백업</summary>
-        <button class="btn btn-neutral" id="syncSettingsBtn">Gist 설정</button>
-        <button class="btn btn-ghost" id="syncUpBtn">Gist에 백업</button>
-        <button class="btn btn-ghost" id="syncDownBtn">Gist 백업 불러오기</button>
-      </details>
+      <button class="btn btn-ghost" id="selftalkieSendBtn">▶ Task Note로 보내기 · 0건</button>
+      <button class="btn btn-neutral" id="viewSettingsBtn" aria-label="설정" title="설정" aria-expanded="false" aria-controls="viewSettings">⚙</button>
     </div>
   </div>
 
-  <section id="cloudSync" class="view-settings" aria-label="계정 동기화" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <span data-cloud-status role="status" style="font-size:13px;flex:1">이 기기에 저장 중</span>
-    <button class="btn btn-neutral" data-cloud-login>Google 로그인</button>
-    <button class="btn btn-neutral" data-cloud-logout hidden>로그아웃</button>
-    <button class="btn btn-neutral" data-cloud-history hidden>복구 기록</button>
-    <button class="btn btn-primary" data-cloud-conflict hidden>동시 수정 확인</button>
-  </section>
   <dialog id="cloudConflict" style="border:1px solid #e1e6f0;border-radius:16px;padding:24px;max-width:480px">
     <h2 style="font-size:18px">두 기기의 수정 내용이 달라요</h2>
     <p data-conflict-count></p>
@@ -372,8 +363,30 @@
     <button class="btn btn-neutral" data-history-close>닫기</button><div data-history-list></div>
   </dialog>
   <section id="viewSettings" class="view-settings" hidden aria-label="화면 설정">
-    <div class="view-settings-head"><strong>화면 설정</strong><button class="btn btn-neutral" id="viewSettingsClose">닫기</button></div>
-    <p class="proj-hint">움직이는 즉시 화면에 적용됩니다. 설정은 이 브라우저에 자동 저장됩니다.</p>
+    <div class="view-settings-head"><strong>설정</strong><button class="btn btn-neutral" id="viewSettingsClose">닫기</button></div>
+  <section id="cloudSync" class="view-settings" aria-label="계정 동기화" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span data-cloud-status role="status" style="font-size:13px;flex:1">이 기기에 저장 중</span>
+    <button class="btn btn-neutral" data-cloud-login>Google 로그인</button>
+    <button class="btn btn-neutral" data-cloud-logout hidden>로그아웃</button>
+    <button class="btn btn-neutral" data-cloud-history hidden>복구 기록</button>
+    <button class="btn btn-primary" data-cloud-conflict hidden>동시 수정 확인</button>
+    <details class="col-card project-manager" id="projectManager">
+      <summary class="col-title proj"><span class="dot"></span>프로젝트 관리 <span class="summary-hint">펼치기 / 접기</span></summary>
+      <p class="proj-hint">프로젝트를 클릭하면 마지막으로 사용한 작업 패널에 열립니다. 각 패널 위의 칩으로도 선택할 수 있습니다.</p>
+      <div class="add-row">
+        <input type="text" id="projInput" placeholder="새 프로젝트 이름 후 Enter" maxlength="100">
+        <button class="btn btn-accent" id="projAddBtn">추가</button>
+      </div>
+      <div id="projList"></div>
+    </details>
+  </section>
+    <div class="settings-tools">
+      <button class="btn btn-neutral" id="selftalkieSettingsBtn">Task Note 전송 연결 설정</button>
+      <button class="btn btn-neutral" id="exportBtn">백업 저장</button>
+      <button class="btn btn-neutral" id="importBtn">백업 불러오기</button>
+      <input type="file" id="importInput" accept="application/json,.json" hidden>
+    </div>
+    <label class="panel-mode">작업 패널 <select id="panelMode"><option value="single">싱글 패널</option><option value="dual">듀얼 패널</option></select></label>
     <div class="view-presets" aria-label="화면 프리셋">
       <button class="btn btn-neutral" data-view-preset="compact">촘촘하게</button>
       <button class="btn btn-neutral" data-view-preset="balanced">적당하게</button>
@@ -389,9 +402,7 @@
   <div class="columns" id="workspace">
     <!-- 1칼럼: 진행중 프로젝트 -->
     <div class="col-card task-pane" id="leftPane">
-      <h3 class="col-title"><span class="dot"></span><span class="pane-label">왼쪽 작업</span></h3>
       <div id="activeProjHead" class="active-proj-head"></div>
-      <div class="pane-drop-zone">여기로 드래그하면 이 프로젝트 맨 아래로 이동</div>
       <div class="tabs" id="mainTabs">
         <button class="tab-btn" data-tab="list">할 일 수집</button>
         <button class="tab-btn active" data-tab="execute">Play!</button>
@@ -403,7 +414,6 @@
           <button class="btn btn-ghost" id="addTopBtn">상단추가</button>
           <button class="btn btn-accent" id="addBtn">하단추가</button>
         </div>
-        <p class="proj-hint">⋮⋮을 잡아 행 가운데에 놓으면 하위 할 일로, 위·아래 삽입선에 놓으면 같은 단계로 이동합니다.</p>
         <div class="tree-controls" aria-label="할 일 트리 보기">
           <button class="btn btn-neutral" id="collapseAllBtn">모두 접기</button>
           <button class="btn btn-neutral" id="expandAllBtn">모두 펼치기</button>
@@ -419,15 +429,7 @@
     </div>
 
     <!-- 2칼럼: 프로젝트 관리 -->
-    <details class="col-card project-manager" id="projectManager">
-      <summary class="col-title proj"><span class="dot"></span>프로젝트 관리 <span class="summary-hint">펼치기 / 접기</span></summary>
-      <p class="proj-hint">프로젝트를 클릭하면 마지막으로 사용한 작업 패널에 열립니다. 각 패널 위의 칩으로도 선택할 수 있습니다.</p>
-      <div class="add-row">
-        <input type="text" id="projInput" placeholder="새 프로젝트 이름 후 Enter" maxlength="100">
-        <button class="btn btn-accent" id="projAddBtn">추가</button>
-      </div>
-      <div id="projList"></div>
-    </details>
+
   </div>
 </div>
 
@@ -460,22 +462,6 @@
   </div>
 </div>
 
-<!-- 동기화 설정 오버레이 -->
-<div class="overlay" id="syncOvl">
-  <div class="overlay-box">
-    <h2>동기화 설정 (GitHub Gist)</h2>
-    <p class="hint">본인 GitHub 계정의 Personal Access Token(gist 권한)을 입력하세요. 이 브라우저에만 저장되고, GitHub API 호출 외에는 어디로도 전송되지 않습니다. Gist ID는 처음 ☁️ 올리기를 하면 자동으로 채워집니다 — 다른 기기에서는 그 ID를 여기에 붙여넣어야 같은 데이터를 받아올 수 있습니다.</p>
-    <label class="sync-label">Personal Access Token</label>
-    <input type="password" id="syncTokenInput" class="sync-input" placeholder="ghp_...">
-    <label class="sync-label">Gist ID (비워두면 처음 올릴 때 자동 생성)</label>
-    <input type="text" id="syncGistIdInput" class="sync-input" placeholder="예: a1b2c3d4e5f6...">
-    <div class="overlay-actions">
-      <button class="btn btn-ghost" id="syncOvlCancelBtn">취소</button>
-      <button class="btn btn-accent" id="syncOvlSaveBtn">저장</button>
-    </div>
-  </div>
-</div>
-
 <!-- 아바타 반응 -->
 <div class="avatar-box" id="avatarBox">
   <div class="avatar-face" id="avatarFace">🙂</div>
@@ -492,7 +478,6 @@
   var rightPane = leftPane.cloneNode(true);
   rightPane.id = "rightPane";
   rightPane.querySelectorAll("[id]").forEach(function(e){e.id += "Right";});
-  rightPane.querySelector(".pane-label").textContent = "오른쪽 작업";
   leftPane.after(rightPane);
   var paneContexts = [
     {root:leftPane,projectId:null,tab:"execute"},
@@ -531,17 +516,14 @@
       paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(false);}});
       paneElement(p,"collapseAllBtn").addEventListener("click",function(){setAllCollapsed(true);});
       paneElement(p,"expandAllBtn").addEventListener("click",function(){setAllCollapsed(false);});
-      var zone=p.root.querySelector(".pane-drop-zone");
-      zone.addEventListener("dragover",function(e){if(taskDrag && activeProject()){e.preventDefault();zone.classList.add("drag-over");}});
-      zone.addEventListener("dragleave",function(){zone.classList.remove("drag-over");});
-      zone.addEventListener("drop",function(e){e.preventDefault();zone.classList.remove("drag-over");var source=taskDrag;taskDrag=null;if(source)moveTask(source,null,"root");});
+
     });
     focusPane(paneContexts[0]);
   }
   function syncPaneTimers(){
     var running=[];
     paneContexts.forEach(function(p){
-      if(p.tab!=="execute")return;
+      if(p.root.hidden || p.tab!=="execute")return;
       var project=state.projects.find(function(x){return x.id===p.projectId;});
       var node=project && findActionable(project.tasks);
       if(node && running.indexOf(node)<0)running.push(node);
@@ -554,10 +536,11 @@
   }
   var VIEW_KEY = "adhd_todo_view_settings";
   var viewPresets = {compact:{width:960,density:60}, balanced:{width:1120,density:80}, relaxed:{width:1280,density:100}};
-  var viewSettings = {width:1280,density:100};
+  var viewSettings = {width:1280,density:100,panels:"dual"};
   try{
     var storedView = JSON.parse(localStorage.getItem(VIEW_KEY));
     if(storedView && typeof storedView === "object"){
+      if(storedView.panels==="single")viewSettings.panels="single";
       if(Number.isFinite(storedView.width)) viewSettings.width = Math.max(680,Math.min(1600,Math.round(storedView.width/20)*20));
       if(Number.isFinite(storedView.density)) viewSettings.density = Math.max(50,Math.min(120,Math.round(storedView.density/5)*5));
     }
@@ -569,6 +552,9 @@
   function applyViewSettings(){
     document.documentElement.style.setProperty("--ui-width",viewSettings.width+"px");
     document.documentElement.style.setProperty("--ui-space",String(viewSettings.density/100));
+    rightPane.hidden = viewSettings.panels==="single";
+    document.getElementById("workspace").classList.toggle("single-pane",rightPane.hidden);
+    document.getElementById("panelMode").value=viewSettings.panels;
     viewWidth.value = viewSettings.width;
     viewDensity.value = viewSettings.density;
     document.getElementById("viewWidthValue").textContent = viewSettings.width+" px";
@@ -591,16 +577,21 @@
     viewButton.setAttribute("aria-expanded","false");
     viewButton.focus();
   });
+  document.getElementById("panelMode").addEventListener("change",function(){
+    viewSettings.panels=this.value;saveViewSettings();
+    if(rightPane.hidden)focusPane(paneContexts[0]);
+    syncPaneTimers();save();renderAll();
+  });
   viewWidth.addEventListener("input",function(){viewSettings.width=Number(viewWidth.value);saveViewSettings();});
   viewDensity.addEventListener("input",function(){viewSettings.density=Number(viewDensity.value);saveViewSettings();});
   document.querySelectorAll("[data-view-preset]").forEach(function(btn){
     btn.addEventListener("click",function(){
       var preset=viewPresets[btn.dataset.viewPreset];
-      viewSettings={width:preset.width,density:preset.density};saveViewSettings();
+      viewSettings={width:preset.width,density:preset.density,panels:viewSettings.panels};saveViewSettings();
     });
   });
   document.getElementById("viewSettingsReset").addEventListener("click",function(){
-    viewSettings={width:1280,density:100};saveViewSettings();
+    viewSettings={width:1280,density:100,panels:viewSettings.panels};saveViewSettings();
   });
   applyViewSettings();
 
@@ -785,29 +776,6 @@
       }
     });
   }
-  // 진척도: 노드별 재귀 가중 평균. 포기/비프로젝트는 계산에서 제외.
-  function nodeProgress(n){
-    if(n.status === "gaveup") return null;
-    if(n.status === "done" && !n.nonProject) return 1;
-    var vals = [];
-    n.children.forEach(function(c){
-      var v = nodeProgress(c);
-      if(v !== null) vals.push(v);
-    });
-    if(vals.length === 0) return n.nonProject ? null : 0;
-    var s = 0; vals.forEach(function(v){ s += v; });
-    return s / vals.length;
-  }
-  function projectProgress(p){
-    var vals = [];
-    p.tasks.forEach(function(n){
-      var v = nodeProgress(n);
-      if(v !== null) vals.push(v);
-    });
-    if(vals.length === 0) return null;
-    var s = 0; vals.forEach(function(v){ s += v; });
-    return Math.round(s / vals.length * 100);
-  }
   function collectResolvedNonProject(nodes, out){
     nodes.forEach(function(n){
       if(n.nonProject && n.status !== "pending"){
@@ -887,7 +855,7 @@
   function renderActiveHead(){
     activeProjHead.innerHTML = "";
     if(state.projects.length === 0){
-      activeProjHead.appendChild(el("div","empty-msg","[프로젝트 관리]를 펼쳐 첫 프로젝트를 만들어보세요."));
+      activeProjHead.appendChild(el("div","empty-msg","⚙ 설정 → 프로젝트 관리에서 첫 프로젝트를 만들어보세요."));
       return;
     }
     var chips = el("div","project-chips");
@@ -902,16 +870,6 @@
 
     var p = activeProject();
     if(!p) return;
-    var pct = projectProgress(p);
-    var row = el("div","active-proj-name");
-    row.appendChild(el("span","pct", pct === null ? "진척도 —" : "진척도 " + pct + "%"));
-    activeProjHead.appendChild(row);
-    var bar = el("div","pbar");
-    var fill = el("div","pfill");
-    fill.style.width = (pct === null ? 0 : pct) + "%";
-    bar.appendChild(fill);
-    activeProjHead.appendChild(bar);
-
     if(p.isRoutine){
       var resetRow = el("div","routine-reset-row");
       var resetBtn = el("button","btn btn-ghost","🔁 루틴 리셋");
@@ -1145,7 +1103,6 @@
     var timerEl = el("div","execute-timer","⏱ " + formatDuration((current.timeSpentMs||0) + (current.runningSince ? Date.now()-current.runningSince : 0)));
     timerEl.id = currentPane===paneContexts[0] ? "executeTimerDisplay" : "executeTimerDisplayRight";
     executeCard.appendChild(timerEl);
-    executeCard.appendChild(el("div","execute-progress","남은 "+countPendingLeaves(p.tasks)+"개 중 1번째"));
     var path = findPath(p.tasks, current.id, []);
     if(path && path.length){
       executeCard.appendChild(el("div","execute-path", path.join(" › ")));
@@ -1175,8 +1132,8 @@
     actions.appendChild(mk("act-c","C. 쪼개기","부담스러운 일을 작은 단계로 나누기", function(){ splitCurrent(current); }));
     actions.appendChild(mk("act-d","D. 프로젝트 · 앞에 삽입","지금 일 바로 앞에 끼워넣기", function(){ insertRelative(current, false, false); }));
     actions.appendChild(mk("act-d","E. 프로젝트 · 뒤에 삽입","지금 일 바로 다음에 끼워넣기", function(){ insertRelative(current, false, true); }));
-    actions.appendChild(mk("act-e","F. 비프로젝트 · 앞에 삽입","딴짓을 바로 앞에 · 진척도 미포함", function(){ insertRelative(current, true, false); }));
-    actions.appendChild(mk("act-e","G. 비프로젝트 · 뒤에 삽입","딴짓을 바로 다음에 · 진척도 미포함", function(){ insertRelative(current, true, true); }));
+    actions.appendChild(mk("act-e","F. 비프로젝트 · 앞에 삽입","딴짓을 바로 앞에", function(){ insertRelative(current, true, false); }));
+    actions.appendChild(mk("act-e","G. 비프로젝트 · 뒤에 삽입","딴짓을 바로 다음에", function(){ insertRelative(current, true, true); }));
     actions.appendChild(mk("act-f","H. 포기","이 할 일 내려놓기", function(){
       if(confirm("이 항목을 포기할까요?")) resolveCurrent(current,"gaveup");
     }));
@@ -1389,9 +1346,6 @@
         }
       });
 
-      var pct = projectProgress(p);
-      var pctEl = el("span","proj-pct", pct === null ? "—" : pct + "%");
-
       var routineBtn = el("button","routine-toggle" + (p.isRoutine ? " active" : ""), "🔁");
       routineBtn.type = "button";
       routineBtn.title = p.isRoutine ? "루틴 프로젝트 해제" : "루틴 프로젝트로 설정 (모닝루틴, 수면루틴 등)";
@@ -1414,18 +1368,10 @@
       });
 
       row.appendChild(name);
-      row.appendChild(pctEl);
       row.appendChild(renameBtn);
       row.appendChild(routineBtn);
       row.appendChild(delBtn);
       wrap.appendChild(row);
-
-      var bar = el("div","proj-pbar");
-      bar.style.margin = "0 4px 10px";
-      var fill = el("div","pfill");
-      fill.style.width = (pct === null ? 0 : pct) + "%";
-      bar.appendChild(fill);
-      wrap.appendChild(bar);
 
       projListEl.appendChild(wrap);
     });
@@ -1474,106 +1420,6 @@
     reader.readAsText(file);
   });
 
-  // ---------- 동기화 (GitHub Gist) ----------
-  var SYNC_TOKEN_KEY = "adhd_todo_sync_token";
-  var SYNC_GISTID_KEY = "adhd_todo_sync_gistid";
-  var GIST_FILENAME = "adhd-todo-backup.json";
-
-  function getSyncToken(){ return localStorage.getItem(SYNC_TOKEN_KEY) || ""; }
-  function getSyncGistId(){ return localStorage.getItem(SYNC_GISTID_KEY) || ""; }
-  function setSyncToken(v){ if(v) localStorage.setItem(SYNC_TOKEN_KEY, v); else localStorage.removeItem(SYNC_TOKEN_KEY); }
-  function setSyncGistId(v){ if(v) localStorage.setItem(SYNC_GISTID_KEY, v); else localStorage.removeItem(SYNC_GISTID_KEY); }
-
-  var syncOvl = document.getElementById("syncOvl");
-  var syncTokenInput = document.getElementById("syncTokenInput");
-  var syncGistIdInput = document.getElementById("syncGistIdInput");
-  document.getElementById("syncSettingsBtn").addEventListener("click", function(){
-    syncTokenInput.value = getSyncToken();
-    syncGistIdInput.value = getSyncGistId();
-    syncOvl.classList.add("active");
-  });
-  document.getElementById("syncOvlCancelBtn").addEventListener("click", function(){ syncOvl.classList.remove("active"); });
-  document.getElementById("syncOvlSaveBtn").addEventListener("click", function(){
-    setSyncToken(syncTokenInput.value.trim());
-    setSyncGistId(syncGistIdInput.value.trim());
-    syncOvl.classList.remove("active");
-    alert("저장했습니다.");
-  });
-  syncOvl.addEventListener("click", function(e){ if(e.target === syncOvl) syncOvl.classList.remove("active"); });
-
-  function withBusy(btn, busyText, fn){
-    var origText = btn.textContent;
-    btn.disabled = true; btn.textContent = busyText;
-    var restore = function(){ btn.disabled = false; btn.textContent = origText; };
-    fn(restore);
-  }
-
-  document.getElementById("syncUpBtn").addEventListener("click", function(){
-    var btn = this;
-    var token = getSyncToken();
-    if(!token){ alert("먼저 ⚙️ 동기화 설정에서 토큰을 입력하세요."); return; }
-    withBusy(btn, "올리는 중...", function(restore){
-      var payload = { version: 2, exportedAt: new Date().toISOString(), data: state };
-      var gistId = getSyncGistId();
-      var url = gistId ? ("https://api.github.com/gists/" + gistId) : "https://api.github.com/gists";
-      var method = gistId ? "PATCH" : "POST";
-      var body = { description: "ADHD 투두리스트 백업 (자동 생성)", public: false, files: {} };
-      body.files[GIST_FILENAME] = { content: JSON.stringify(payload, null, 2) };
-      fetch(url, {
-        method: method,
-        headers: { "Authorization": "token " + token, "Accept": "application/vnd.github+json" },
-        body: JSON.stringify(body)
-      }).then(function(res){
-        if(!res.ok) return res.json().then(function(e){ throw new Error(res.status + " " + (e.message||"")); });
-        return res.json();
-      }).then(function(data){
-        var isNew = !gistId;
-        if(isNew) setSyncGistId(data.id);
-        restore();
-        alert("올리기 완료." + (isNew ? "\n\n다른 기기에서 동기화하려면 동기화 설정에 이 Gist ID를 입력하세요:\n" + data.id : ""));
-      }).catch(function(err){
-        restore();
-        alert("올리기 실패: " + err.message + "\n토큰(gist 권한) 또는 Gist ID를 확인하세요.");
-      });
-    });
-  });
-
-  document.getElementById("syncDownBtn").addEventListener("click", function(){
-    var btn = this;
-    var token = getSyncToken();
-    var gistId = getSyncGistId();
-    if(!gistId){ alert("먼저 ⚙️ 동기화 설정에서 Gist ID를 입력하세요.\n(다른 기기에서 먼저 ☁️ 올리기를 하면 ID가 생성됩니다)"); return; }
-    withBusy(btn, "받아오는 중...", function(restore){
-      var headers = { "Accept": "application/vnd.github+json" };
-      if(token) headers["Authorization"] = "token " + token;
-      fetch("https://api.github.com/gists/" + gistId, { headers: headers })
-        .then(function(res){
-          if(!res.ok) return res.json().then(function(e){ throw new Error(res.status + " " + (e.message||"")); });
-          return res.json();
-        })
-        .then(function(gist){
-          var file = gist.files && gist.files[GIST_FILENAME];
-          if(!file) throw new Error("백업 파일을 찾을 수 없습니다.");
-          var payload = JSON.parse(file.content);
-          if(!(payload.version === 2 && payload.data && payload.data.projects)){
-            throw new Error("백업 형식이 올바르지 않습니다.");
-          }
-          if(!confirm("클라우드 데이터로 이 기기의 데이터를 덮어씁니다. 계속할까요?")){ restore(); return; }
-          state = payload.data;
-          timerNodeId = null; timerProjectId = null;
-          finalizeAllRunning();
-          state.projects.forEach(function(p){ sweep(p.tasks); });
-          save(); renderAll();
-          restore();
-          alert("받아오기 완료.");
-        })
-        .catch(function(err){
-          restore();
-          alert("받아오기 실패: " + err.message);
-        });
-    });
-  });
-
   // Completion events are immutable snapshots; repeat routines get fresh event IDs.
   function completionSnapshot(project){
     var result = [];
@@ -1619,7 +1465,7 @@
     var events = state.integrationEvents || [];
     var pending = events.filter(function(e){return !e.sentAt;});
     var btn = document.getElementById("selftalkieSendBtn");
-    btn.textContent = selftalkieSending ? "SelfTalkie로 보내는 중…" : "SelfTalkie로 보내기 · " + pending.length + "건";
+    btn.textContent = selftalkieSending ? "SelfTalkie로 보내는 중…" : "▶ Task Note로 보내기 · " + pending.length + "건";
     btn.disabled = selftalkieSending;
     var queue = document.getElementById("selftalkieQueue");
     queue.replaceChildren(el("strong",null,"전송 대기 " + pending.length + "건 · 전송 완료 " + (events.length-pending.length) + "건"));

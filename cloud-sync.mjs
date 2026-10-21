@@ -16,6 +16,7 @@ let displayOwner=window.jjogaera.getState().cloudOwner||null;
 const desktopState=new URLSearchParams(location.hash.slice(1)).get('desktop-login');
 const embedded=new URLSearchParams(location.search).get('embedded')==='1' && window.parent!==window;
 if(desktopState){
+  document.getElementById('viewSettings').hidden=false;
   history.replaceState(null,'',location.pathname);
   document.getElementById('workspace').style.display='none';
   document.querySelector('.topbar').style.display='none';
@@ -25,6 +26,7 @@ if(desktopState){
 const storageKey=uid=>'jjogaera_cloud_v1_'+uid;
 function status(kind,detail){
   resolve.hidden=kind!=='conflict';
+  document.getElementById('viewSettingsBtn').dataset.attention=String(kind==='conflict'||kind==='error'||kind==='offline');
   const messages={synced:'동기화 완료',saving:'저장 중…',conflict:'동시 수정이 있어 확인이 필요합니다',offline:'오프라인 · 이 기기에 저장 중'};
   label.textContent=messages[kind]||('동기화 보류 · '+(detail?.code==='permission-denied'?'접근 권한을 확인해주세요.':detail?.message||'연결을 확인해주세요.'));
 }
