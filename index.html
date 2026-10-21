@@ -460,8 +460,6 @@
   #viewSettings .settings-account{margin:0 0 14px;padding:0 0 12px;border-top:0;border-bottom:1px solid #eee;}
   .backup-settings{margin-top:18px;border-top:1px solid #eee;padding-top:12px;font-size:11px;color:#888;}
   .backup-settings summary{cursor:pointer;}.backup-settings p{font-size:10px;}
-  #selftalkieOvl .overlay-box{width:320px;padding:16px;border:1px solid #e2e2e2;border-radius:10px;box-shadow:none;}
-  #selftalkieOvl h2{font-size:14px;margin:0 0 12px;}#selftalkieOvl .hint{font-size:12px;}#selftalkieOvl [hidden]{display:none!important;}
 
   :root{--theme-surface:#faf8ff;--theme-input:#f6f1ff;--theme-accent:#635b7f;--theme-border:#aaa2bd;}
   .topbar{background:var(--theme-surface);color:#263247;}
@@ -566,7 +564,6 @@
       <label for="viewDensity">항목 간격 <output id="viewDensityValue" for="viewDensity"></output><input id="viewDensity" type="range" min="50" max="120" step="5"><span>촘촘하게 ↔ 여유롭게 · 목록, 버튼, 카드의 여백을 함께 조절합니다.</span></label>
     </div>
 
-    <div class="settings-tools"><button class="btn btn-neutral" id="selftalkieSettingsBtn">Task Note 전송 설정</button></div>
     <details class="backup-settings"><summary>백업 관리</summary><p>파일로 따로 보관하거나 저장한 백업을 불러옵니다.</p><button class="btn btn-neutral" id="exportBtn">백업 저장</button><button class="btn btn-neutral" id="importBtn">백업 불러오기</button><input type="file" id="importInput" accept="application/json,.json" hidden></details>
     <div class="settings-footer"><button class="btn btn-neutral" id="viewSettingsClose">닫기</button></div>
   </dialog>
@@ -627,20 +624,6 @@
       <button class="btn btn-ghost" id="ovlCancelBtn">취소</button>
       <button class="btn btn-accent" id="ovlConfirmBtn">확인</button>
     </div>
-  </div>
-</div>
-
-<div class="overlay" id="selftalkieOvl" role="dialog" aria-modal="true" aria-labelledby="selftalkieTitle">
-  <div class="overlay-box" style="max-height:90vh;overflow:auto;">
-    <h2 id="selftalkieTitle">Task Note 전송 설정</h2>
-    <p class="hint">상단의 ‘Task Note · N건 전송’을 누르면 완료한 일을 해당 시간의 Task Note에 기록합니다.</p>
-    <p id="selftalkieAutomatic" class="hint" hidden>이 PC 앱에 자동으로 연결되어 있습니다. 추가 설정은 필요 없습니다.</p>
-    <div id="selftalkieExternal"><p class="hint">외부 웹에서는 처음 한 번 PC와 연결해야 합니다. SelfTalkie의 홈 설정 → 외부 웹 → Task Note 연결에서 코드를 복사해주세요.</p>
-    <label class="sync-label" for="selftalkieToken">PC 연결 코드</label>
-    <input class="sync-input" id="selftalkieToken" type="password" autocomplete="off" placeholder="PC에서 복사한 코드">
-    <button class="btn btn-ghost" id="selftalkieTestBtn">PC 연결</button></div>
-    <p id="selftalkieStatus" role="status" style="font-size:12px;line-height:1.6;"></p>
-    <div class="overlay-actions"><button class="btn btn-neutral" id="selftalkieCloseBtn">닫기</button></div>
   </div>
 </div>
 
@@ -1697,10 +1680,6 @@
     state.integrationEvents = (state.integrationEvents || []).concat(records);
   }
 
-  var selftalkieTokenKey = "adhd_todo_selftalkie_token";
-  var selftalkieOverlay = document.getElementById("selftalkieOvl");
-  var selftalkieToken = document.getElementById("selftalkieToken");
-  var selftalkieStatus = document.getElementById("selftalkieStatus");
   var selftalkieSending = false;
   function renderSelftalkie(){
     var events = state.integrationEvents || [];
@@ -1709,53 +1688,20 @@
     btn.textContent=selftalkieSending?"전송 중…":"Task Note · "+pending.length+"건 전송";btn.title="완료한 일을 Task Note로 보내기 · "+pending.length+"건";btn.setAttribute("aria-label",btn.title);
     btn.disabled = selftalkieSending || pending.length===0;
   }
-  function nativeTaskNoteAvailable(){try{return window.parent!==window&&!!window.parent.SELFTALKIE_DESKTOP&&!!window.parent.pywebview?.api?.jjogaera_embedded_request;}catch(e){return false;}}
-
-  function openSelftalkie(){
-    if(viewPanel.open)viewPanel.close();
-    document.getElementById("selftalkieExternal").hidden=nativeTaskNoteAvailable();document.getElementById("selftalkieAutomatic").hidden=!nativeTaskNoteAvailable();
-    selftalkieToken.value = localStorage.getItem(selftalkieTokenKey) || "";
-    selftalkieOverlay.classList.add("active");
-    renderSelftalkie();
-  }
-  function closeSelftalkie(){selftalkieOverlay.classList.remove("active");}
   async function selftalkieRequest(path, body){
-    var token = localStorage.getItem(selftalkieTokenKey) || "";
-    if(!token) throw new Error("SelfTalkie 설정에서 연결 코드를 복사한 뒤 입력해주세요.");
-    var controller = new AbortController();
-    var timeout = setTimeout(function(){controller.abort();},10000);
-    try{
-      var response = await fetch("http://127.0.0.1:43129"+path, {
-        method:body ? "POST" : "GET", signal:controller.signal,
-        headers:body ? {"Authorization":"Bearer "+token,"Content-Type":"application/json"} : {"Authorization":"Bearer "+token},
-        body:body ? JSON.stringify(body) : undefined
-      });
-      var data = await response.json();
-      if(!response.ok || !data.ok) throw new Error(data.error || "수신기 응답을 확인할 수 없습니다.");
-      return data;
-    }catch(e){
-      if(e.name === "TypeError" || e.name === "AbortError") throw new Error("연결하지 못했습니다. 같은 PC에서 SelfTalkie를 실행하고, 브라우저의 로컬 네트워크 접근을 허용하세요. 대기 기록은 그대로 보관됩니다.");
-      throw e;
-    }finally{clearTimeout(timeout);}
+    if(window.parent!==window && window.parent.selftalkieCloud){
+      if(window.parent.SELFTALKIE_DESKTOP){
+        var result=await window.parent.pywebview.api.jjogaera_embedded_request(path,body||null);
+        if(!result.ok)throw Error(result.error||"Task Note 전송 실패");
+        return result;
+      }
+      return window.parent.selftalkieCloud.receiveNotes(path,body);
+    }
+    if(!window.jjogaeraCloudSend)throw Error("Google 로그인과 데이터 연결을 먼저 완료해주세요.");
+    return window.jjogaeraCloudSend(path,body);
   }
-  document.getElementById("selftalkieSettingsBtn").addEventListener("click",openSelftalkie);
-  document.getElementById("selftalkieCloseBtn").addEventListener("click",closeSelftalkie);
-  selftalkieOverlay.addEventListener("click",function(e){if(e.target === selftalkieOverlay) closeSelftalkie();});
-  document.getElementById("selftalkieTestBtn").addEventListener("click",async function(){
-    var button = this;
-    localStorage.setItem(selftalkieTokenKey,selftalkieToken.value.trim());
-    button.disabled = true;
-    selftalkieStatus.textContent = "연결 확인 중…";
-    try{
-      var result = await selftalkieRequest("/health");
-      if(result.service !== "selftalkie-jjogaera") throw new Error("SelfTalkie 수신기가 아닙니다.");
-      selftalkieStatus.textContent = "연결되었습니다. 상단의 보내기 버튼으로 대기 기록을 보낼 수 있습니다.";
-    }catch(e){selftalkieStatus.textContent=e.message;}
-    finally{button.disabled=false;}
-  });
   document.getElementById("selftalkieSendBtn").addEventListener("click",async function(){
     if(selftalkieSending) return;
-    if(!nativeTaskNoteAvailable()&&!localStorage.getItem(selftalkieTokenKey)){showAvatar("!","설정 → Task Note 전송 설정에서 PC를 먼저 연결해주세요.");return;}
     var pending = (state.integrationEvents || []).filter(function(e){return !e.sentAt;});
     if(!pending.length)return;
     selftalkieSending=true;renderSelftalkie();
@@ -1770,8 +1716,8 @@
         save();sent+=batch.length;
       }
       showAvatar("✓", "SelfTalkie에 " + sent + "건 기록했습니다.");
-      selftalkieStatus.textContent=sent+"건을 완료 시각에 맞춰 기록했습니다.";
-    }catch(e){showAvatar("!",(sent ? sent+"건 전송 완료. " : "")+e.message);selftalkieStatus.textContent=e.message;}
+      showAvatar("✓",sent+"건을 Task Note에 기록했습니다.");
+    }catch(e){showAvatar("!",(sent ? sent+"건 전송 완료. " : "")+e.message);}
     finally{selftalkieSending=false;renderSelftalkie();}
   });
 

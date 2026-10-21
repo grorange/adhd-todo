@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {receiveTaskNotes} from '../task-notes.mjs';
+const records={activities:{items:[]},timelog:{items:[]},timer:{running:false},jjogaera_events:{values:{}}};
+const event={id:'a',taskId:'t',projectId:'p',projectName:'Project',text:'Task',completedAt:Date.now()-10000,status:'done',path:[],milestones:[]};
+const result=receiveTaskNotes(records,{events:[event]});assert.equal(result.records.timelog.items.length,1);assert.equal(records.timelog.items.length,0);
+assert.equal(receiveTaskNotes(result.records,{events:[event]}).records.timelog.items.length,1);
+assert.throws(()=>receiveTaskNotes(result.records,{events:[{...event,status:'gaveup'}]}));
+assert.throws(()=>receiveTaskNotes(records,{events:[{...event,id:'__proto__'}]}));
+assert.throws(()=>receiveTaskNotes(records,{events:[{...event,completedAt:Infinity}]}));
+const start=new Date(event.completedAt-1000),stop=new Date(event.completedAt+1000);const iso=d=>new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,23);
+const existing={...records,timelog:{items:[{activityId:'work',start:iso(start),stop:iso(stop)}]}};
+assert.equal(receiveTaskNotes(existing,{events:[event]}).records.timelog.items.length,1);
+console.log('PASS automatic Task Note placement, immutable IDs, retries, invalid events');

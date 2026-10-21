@@ -1,3 +1,4 @@
+import {receiveTaskNotes} from './task-notes.mjs';
 import {initializeApp} from 'firebase/app';
 import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithCredential,onAuthStateChanged,signOut} from 'firebase/auth';
 import {getFirestore,collection,doc,onSnapshot,getDocsFromServer,runTransaction,serverTimestamp,query,where,Timestamp} from 'firebase/firestore';
@@ -186,3 +187,17 @@ onAuthStateChanged(auth,async user=>{
     logout.textContent=(user.displayName||user.email||'계정')+' · 로그아웃';
   }catch(e){status('error',e);}
 });
+
+window.jjogaeraCloudSend=async(path,payload)=>{
+ const user=auth.currentUser;if(!user)throw Error('Google 로그인 후 Task Note를 전송해주세요.');
+ if(path==='/health')return {ok:true,service:'selftalkie-jjogaera'};
+ if(path!=='/events')throw Error('지원하지 않는 요청입니다.');
+ const uid=user.uid,keys=['jjogaera_events','timelog','activities','timer'];
+ return runTransaction(db,async tx=>{
+  const refs=keys.map(key=>doc(db,'users',uid,'selftalkie',key)),snaps=await Promise.all(refs.map(ref=>tx.get(ref)));
+  const records=Object.fromEntries(snaps.map((snap,i)=>[keys[i],snap.exists()?snap.data().value:null]));
+  const result=receiveTaskNotes(records,payload);
+  refs.forEach((ref,i)=>{const key=keys[i];if(equal(records[key],result.records[key]))return;const old=snaps[i].data();tx.set(ref,{schema:1,value:result.records[key],revision:(old?.revision||0)+1,previous:old?[{revision:old.revision,value:old.value},...(old.previous||[])].slice(0,3):[],updatedAt:serverTimestamp()});});
+  return {ok:true,acceptedIds:result.acceptedIds};
+ });
+};
