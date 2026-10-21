@@ -322,7 +322,7 @@
   .task-pane.focused{border-color:var(--accent);}
   .pane-label{font-size:13px;}
   .task-list{min-height:48px;}
-  .task-list.drag-over{outline:2px dashed var(--accent);background:var(--accent-soft);border-radius:8px;}
+  .task-list.drop-empty:after{content:"여기에 할 일 놓기";display:block;padding:8px;color:var(--accent);font-size:12px;border-top:3px solid var(--accent);}
   .task-pane .add-row{flex-wrap:wrap;}
   .task-pane .add-row input{flex-basis:160px;}
   .task-pane .act-btn{padding:calc(13px * var(--ui-space));}
@@ -385,7 +385,7 @@
   .task-pane .history-tab{flex-basis:32px;}
   .add-row{margin:0 0 5px;}
   .add-row input[type=text]{padding:8px 9px;font-size:13px;border-radius:6px;}
-  .task-list{gap:calc(4px * var(--ui-space));padding:2px 0 8px;}
+  .task-list{gap:calc(4px * var(--ui-space));padding:8px 0 8px;}
   .task-row{min-width:0;gap:3px;padding:calc(5px * var(--ui-space)) 4px;border-radius:6px;}
   .task-row .task-text{font-size:13px;padding:3px 1px;}
   .task-row input[type=checkbox]{width:16px;height:16px;}
@@ -705,15 +705,22 @@
       paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(false);}});
       var list=paneElement(p,"taskList");
       list.addEventListener("dragover",function(e){
-        if(taskDrag && activeProject() && !e.target.closest(".task-row")){e.preventDefault();list.classList.add("drag-over");}
+        if(!taskDrag || !activeProject() || e.target.closest(".task-row"))return;
+        clearDropHints();
+        var target=gapDropTarget(list,e.clientY);
+        if(target && !canDropOn(target.row.dataset.taskId))return;
+        e.preventDefault();e.dataTransfer.dropEffect="move";
+        if(target)showDropHint(target.row,target.mode);else list.classList.add("drop-empty");
       });
-      list.addEventListener("dragleave",function(){list.classList.remove("drag-over");});
+      list.addEventListener("dragleave",function(e){if(!list.contains(e.relatedTarget))clearDropHints();});
       list.addEventListener("drop",function(e){
-        list.classList.remove("drag-over");
         if(e.target.closest(".task-row"))return;
-        e.preventDefault();var source=taskDrag;taskDrag=null;if(source)moveTask(source,null,"root");
+        var target=gapDropTarget(list,e.clientY);
+        if(target && !canDropOn(target.row.dataset.taskId))return;
+        e.preventDefault();var source=taskDrag;taskDrag=null;clearDropHints();
+        if(source)moveTask(source,target?target.row.dataset.taskId:null,target?target.mode:"root");
       });
-      list.addEventListener("dragend",function(){list.classList.remove("drag-over");});
+      list.addEventListener("dragend",clearDropHints);
 
     });
     focusPane(paneContexts[0]);
@@ -1208,15 +1215,32 @@
 
   var taskDrag = null;
   function clearDropHints(){
+    document.querySelectorAll(".drop-empty").forEach(function(list){list.classList.remove("drop-empty");});
     document.querySelectorAll(".drop-before,.drop-after,.drop-inside").forEach(function(row){
       row.classList.remove("drop-before","drop-after","drop-inside");
       row.removeAttribute("data-drop-label");
     });
   }
+  function gapDropTarget(list,y){
+    var rows=Array.from(list.querySelectorAll(".task-row"));
+    if(!rows.length)return null;
+    var next=rows.find(function(row){return y<row.getBoundingClientRect().top;});
+    return {row:next||rows[rows.length-1],mode:next?"before":"after"};
+  }
+  function canDropOn(id){
+    if(!taskDrag)return false;
+    if(taskDrag.projectId!==state.activeProjectId)return true;
+    var p=activeProject(),source=p && locate(p.tasks,taskDrag.id);
+    return !!source && taskDrag.id!==id && !locate(source.arr[source.idx].children,id);
+  }
+  function showDropHint(row,mode){
+    row.classList.add("drop-"+mode);
+    row.dataset.dropLabel=mode==="inside"?"하위 할 일로 넣기":mode==="before"?"이 항목 앞에 넣기":"이 항목 뒤에 넣기";
+  }
   function dropMode(row, y){
     var r = row.getBoundingClientRect();
     var offset = y - r.top;
-    return offset < r.height * .24 ? "before" : (offset > r.height * .76 ? "after" : "inside");
+    return offset < r.height * .35 ? "before" : (offset > r.height * .65 ? "after" : "inside");
   }
   function moveTask(source, targetId, mode){
     var p=activeProject();
@@ -1273,8 +1297,7 @@
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         var mode = dropMode(row, e.clientY);
-        row.classList.add("drop-" + mode);
-        row.dataset.dropLabel = mode === "inside" ? "하위 할 일로 넣기" : (mode === "before" ? "이 항목 앞에 넣기" : "이 항목 뒤에 넣기");
+        showDropHint(row,mode);
       });
       row.addEventListener("dragleave", function(e){
         if(!row.contains(e.relatedTarget)) clearDropHints();
