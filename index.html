@@ -1740,6 +1740,26 @@
     renderProjects();savePaneLayout();save();
   }
 
+  window.jjogaeraWidget={
+    tasks:function(){
+      var seen={};return paneContexts.map(function(pane){
+        var project=state.projects.find(function(p){return p.id===pane.projectId;});
+        if(!project||seen[project.id])return null;seen[project.id]=true;
+        var task=findActionable(project.tasks);
+        return {projectId:project.id,projectName:project.name,taskId:task?task.id:null,text:task?task.text:"완료한 프로젝트",pane:paneContexts.indexOf(pane)};
+      }).filter(Boolean);
+    },
+    act:function(projectId,taskId,action){
+      if(["done","postpone"].indexOf(action)<0)return false;
+      var pane=paneContexts.find(function(p){return p.projectId===projectId;});
+      var project=state.projects.find(function(p){return p.id===projectId;});
+      var task=project&&findActionable(project.tasks);
+      if(!pane||!task||task.id!==taskId)return false;
+      var previous=currentPane;focusPane(pane);
+      try{if(action==="done")resolveCurrent(task,"done");else postpone(task);}finally{focusPane(previous);}
+      return true;
+    }
+  };
   window.jjogaera={
     getState:function(){return JSON.parse(JSON.stringify(state));},
     applyState:function(next){
