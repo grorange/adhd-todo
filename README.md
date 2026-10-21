@@ -18,6 +18,8 @@ GitHub Pages에서 동작하는 트리형 할 일 앱. 로그인 없이 기존 �
 
 규칙 테스트는 Firebase CLI로 `demo-jjogaera` 프로젝트의 Firestore 에뮬레이터를 8180 포트에 실행한 뒤 `npm run test:rules`로 실행합니다. 실제 사용자 데이터에는 테스트를 실행하지 않습니다.
 
+브라우저 통합 테스트는 같은 프로젝트의 Auth 에뮬레이터(9199)도 실행하고 `npm run test:browser`로 실행합니다. Playwright Chromium 설치가 필요하며 `PLAYWRIGHT_CHROME_EXECUTABLE` 환경변수로 설치된 Chrome을 지정할 수도 있습니다. 두 브라우저의 변경 병합, 오프라인 수정, 복구, 550개 항목 전송, 재시작, 계정 전환을 검증합니다.
+
 배포 규칙: `firebase deploy --only firestore:rules --project selftalkie-fd7e7`.
 
 Firebase 웹 설정의 API 키는 앱 식별용 공개 설정입니다. 관리자 자격 증명과 로그인 토큰은 저장소에 넣지 않습니다. 데이터 권한은 `firestore.rules`가 Google 로그인 계정의 UID별로 제한합니다.

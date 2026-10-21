@@ -12,6 +12,7 @@ const label=ui.querySelector('[data-cloud-status]'),login=ui.querySelector('[dat
 let session=null,unlisten=null,generation=0,applying=false;
 let historyRecords=new Map();
 let refreshHistory=null;
+let displayOwner=window.jjogaera.getState().cloudOwner||null;
 const desktopState=new URLSearchParams(location.hash.slice(1)).get('desktop-login');
 const embedded=new URLSearchParams(location.search).get('embedded')==='1' && window.parent!==window;
 if(desktopState){
@@ -95,7 +96,17 @@ historyButton.onclick=async()=>{
   dialog.showModal();
 };
 document.querySelector('[data-history-close]').onclick=()=>document.getElementById('cloudHistory').close();
-window.addEventListener('jjogaera-change',()=>{if(session&&!applying)try{session.changed(flatten(window.jjogaera.getState()));}catch(e){status('error',e);}});
+window.addEventListener('jjogaera-change',()=>{
+  if(applying)return;
+  try{
+    const local=flatten(window.jjogaera.getState());
+    if(session)session.changed(local);
+    else if(displayOwner){
+      const key=storageKey(displayOwner),saved=JSON.parse(localStorage.getItem(key)||'null');
+      if(saved)localStorage.setItem(key,JSON.stringify({...saved,local}));
+    }
+  }catch(e){status('error',e);}
+});
 window.addEventListener('offline',()=>status('offline'));
 window.addEventListener('online',()=>session?.schedule());
 onAuthStateChanged(auth,async user=>{
@@ -107,8 +118,12 @@ onAuthStateChanged(auth,async user=>{
   label.textContent='계정 데이터 연결 중…';
   try{
     const uid=user.uid,key=storageKey(uid),stored=JSON.parse(localStorage.getItem(key)||'null');
-    const owner=localStorage.getItem('jjogaera_cloud_owner');
+    const owner=displayOwner;
     const current=window.jjogaera.getState();
+    if(owner && owner!==uid){
+      const oldKey=storageKey(owner),old=JSON.parse(localStorage.getItem(oldKey)||'null');
+      if(old)localStorage.setItem(oldKey,JSON.stringify({...old,local:flatten(current)}));
+    }
     let local;
     if(stored)local=owner===uid?flatten(current):stored.local;
     else if(!owner && current.projects.length){
@@ -116,6 +131,7 @@ onAuthStateChanged(auth,async user=>{
       localStorage.setItem('jjogaera_before_cloud',JSON.stringify(current));local=flatten(current);
     }else local={};
     localStorage.setItem('jjogaera_cloud_owner',uid);
+    displayOwner=uid;
     const ref=collection(db,'users',uid,'todo');
     const remoteCache=structuredClone(stored?.base||{}),revisions=new Map();
     let cursor=stored?.cursor||null,safeCursor=cursor;
@@ -149,9 +165,9 @@ onAuthStateChanged(auth,async user=>{
     };
     const apply=records=>{
       if(gen!==generation)return;
-      if(equal(flatten(window.jjogaera.getState()),records))return;
+      if(equal(flatten(window.jjogaera.getState()),records)&&window.jjogaera.getState().cloudOwner===uid)return;
       applying=true;
-      try{window.jjogaera.applyState(materialize(records,window.jjogaera.getState().activeProjectId));}finally{applying=false;}
+      try{window.jjogaera.applyState({...materialize(records,window.jjogaera.getState().activeProjectId),cloudOwner:uid});}finally{applying=false;}
     };
     session=new SyncSession({adapter,local,base:stored?.base||{},apply,persist,status});
     persist(session.base,session.local);apply(local);

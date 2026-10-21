@@ -5,9 +5,10 @@
   "scripts": {
     "build": "esbuild cloud-sync.mjs --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=cloud-bundle.js",
     "test": "node --test tests/sync-core.test.mjs tests/sync-session.test.mjs",
-    "test:rules": "node tests/security.test.mjs"
+    "test:rules": "node tests/security.test.mjs",
+    "test:browser": "node tests/browser.cjs"
   },
   "dependencies": {"firebase": "13.0.0"},
-  "devDependencies": {"esbuild": "0.28.2", "@firebase/rules-unit-testing": "6.0.0"},
+  "devDependencies": {"esbuild": "0.28.2", "@firebase/rules-unit-testing": "6.0.0", "playwright": "1.64.1"},
   "overrides": {"@grpc/grpc-js": "^1.13.6"}
 }

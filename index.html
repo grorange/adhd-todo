@@ -694,6 +694,7 @@
         var p = JSON.parse(raw);
         state.projects = p.projects || [];
         state.integrationEvents = p.integrationEvents || [];
+        state.cloudOwner = p.cloudOwner || null;
         state.activeProjectId = p.activeProjectId || null;
         if(!state.activeProjectId && state.projects.length) state.activeProjectId = state.projects[0].id;
         return;
