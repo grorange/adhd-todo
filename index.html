@@ -379,7 +379,6 @@
   .col-card.task-pane{padding:0 2px 8px;border:0;border-radius:0;box-shadow:none;background:white;}
   .task-pane.focused{box-shadow:none;}
   .active-proj-head{margin:5px 0 0;}
-  .single-pane .active-proj-head{display:none;}
   .pane-category{border:0;background:transparent;color:#797386;font-size:11px;padding:4px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .task-pane .tabs{margin:4px 0 8px;padding:2px;background:#f4f3f8;border:0;border-radius:6px;gap:3px;}
   .task-pane .tab-btn{padding:8px 4px;font-size:12px;border-radius:5px;}
@@ -577,7 +576,6 @@
 
 
   <div class="workspace-tools" aria-label="프로젝트와 기록 도구">
-      <button class="header-icon" id="categoryBtn" title="프로젝트 변경" aria-label="프로젝트 변경">프로젝트 변경</button>
       <button class="header-icon" id="treeToggleAll" title="모두 접기" aria-label="모두 접기">모두 접기</button>
       <button class="btn btn-ghost" id="selftalkieSendBtn" title="완료한 일을 Task Note로 보내기" aria-label="Task Note로 보내기">Task Note로 전송</button>
   </div>
@@ -1093,7 +1091,6 @@
     if(!state.projects.length)dialog.appendChild(el("p",null,"아래 프로젝트 관리에서 프로젝트를 만들어주세요."));
     var close=el("button","btn btn-neutral","닫기");close.onclick=function(){dialog.close();};dialog.appendChild(close);dialog.addEventListener("close",function(){dialog.remove();});document.body.appendChild(dialog);dialog.showModal();
   }
-  document.getElementById("categoryBtn").addEventListener("click",openCategoryPicker);
   function allTreesCollapsed(){var branches=[];var project=activeProject();if(project)(function walk(nodes){nodes.forEach(function(n){if(n.status==="pending"&&n.children.length){branches.push(n);walk(n.children);}});})(project.tasks);return branches.length>0&&branches.every(function(n){return !!collapsedTrees[collapsedKey(n.id)];});}
   document.getElementById("treeToggleAll").addEventListener("click",function(){setAllCollapsed(!allTreesCollapsed());});
   function renderActiveHead(){
