@@ -357,6 +357,16 @@
   .timer-row .execute-timer{font-size:15px;font-variant-numeric:tabular-nums;color:#65758d;margin:0;}
   .timer-reset{border:1px solid #dce2ed;border-radius:6px;background:#f6f8fb;color:#748199;font-size:11px;padding:4px 7px;cursor:pointer;}
   .timer-reset:hover{color:#5143bd;border-color:#a99fe9;}
+  .proj-rename-editor{display:flex;align-items:center;gap:5px;flex:1;min-width:0;flex-wrap:wrap;}
+  .proj-rename-input{min-width:80px;flex:1;width:100px;border:1px solid var(--accent);border-radius:6px;padding:8px;font:inherit;}
+  .proj-row{flex-wrap:wrap;}
+  .proj-row .project-move{padding:5px 7px;}
+  .project-move:disabled{opacity:.3;cursor:default;}
+  .project-delete-dialog{border:1px solid var(--line);border-radius:16px;padding:24px;max-width:420px;width:calc(100% - 48px);color:var(--ink);}
+  .project-delete-dialog h2{font-size:18px;margin-top:0;}
+  .project-delete-dialog p{line-height:1.7;overflow-wrap:anywhere;}
+  .project-delete-dialog button{margin-right:8px;}
+  .project-delete-dialog::backdrop{background:#17213d70;}
 </style>
 </head>
 <body>
@@ -1383,11 +1393,14 @@
       var renameBtn = el("button","btn btn-neutral","이름 변경");
       renameBtn.addEventListener("click", function(e){
         e.stopPropagation();
-        var value = prompt("프로젝트 이름", p.name);
-        if(value !== null && value.trim()){
-          p.name = value.trim().slice(0,100);
-          save(); renderAll();
-        }
+        var input=el("input","proj-rename-input");input.value=p.name;input.maxLength=100;input.setAttribute("aria-label","새 프로젝트 이름");
+        var saveName=el("button","btn btn-neutral","저장"),cancelName=el("button","btn btn-ghost","취소");
+        var editor=el("div","proj-rename-editor");editor.append(input,saveName,cancelName);
+        editor.addEventListener("click",function(e){e.stopPropagation();});
+        function finish(){var value=input.value.trim();if(!value){input.focus();return;}p.name=value;save();renderAll();}
+        saveName.onclick=finish;cancelName.onclick=function(){renderAll();};
+        input.addEventListener("keydown",function(e){e.stopPropagation();if(e.key==="Enter"&&!e.isComposing){e.preventDefault();finish();}if(e.key==="Escape")renderAll();});
+        name.replaceWith(editor);renameBtn.hidden=true;input.focus();input.select();
       });
 
       var routineBtn = el("button","routine-toggle" + (p.isRoutine ? " active" : ""), "🔁");
@@ -1402,15 +1415,30 @@
       var delBtn = el("button","btn btn-danger","삭제");
       delBtn.addEventListener("click", function(e){
         e.stopPropagation();
-        if(!confirm("프로젝트 \""+p.name+"\"와 그 리스트·히스토리를 전부 삭제할까요?")) return;
+        var dialog=document.createElement("dialog");dialog.className="project-delete-dialog";
+        var title=el("h2",null,"프로젝트 삭제");
+        var message=el("p",null,'“'+p.name+'” 프로젝트와 안의 할 일·기록을 삭제할까요?');
+        var cancel=el("button","btn btn-neutral","취소"),remove=el("button","btn btn-danger","삭제 확인");
+        dialog.append(title,message,cancel,remove);document.body.appendChild(dialog);
+        dialog.addEventListener("close",function(){dialog.remove();});cancel.onclick=function(){dialog.close();};
+        remove.onclick=function(){
         if(timerProjectId === p.id){ timerNodeId = null; timerProjectId = null; }
         state.projects = state.projects.filter(function(x){ return x.id !== p.id; });
         if(state.activeProjectId === p.id){
           state.activeProjectId = state.projects.length ? state.projects[0].id : null;
         }
         save(); renderAll();
+        dialog.close();
+        };
+        dialog.showModal();cancel.focus();
       });
 
+      var up=el("button","btn btn-ghost project-move","↑"),down=el("button","btn btn-ghost project-move","↓");
+      up.setAttribute("aria-label",p.name+" 위로 이동");down.setAttribute("aria-label",p.name+" 아래로 이동");
+      up.disabled=idx===0;down.disabled=idx===state.projects.length-1;
+      function shift(delta,e){e.stopPropagation();var at=state.projects.findIndex(function(x){return x.id===p.id;});var to=at+delta;if(at<0||to<0||to>=state.projects.length)return;var moved=state.projects.splice(at,1)[0];state.projects.splice(to,0,moved);save();renderAll();}
+      up.onclick=function(e){shift(-1,e);};down.onclick=function(e){shift(1,e);};
+      row.append(up,down);
       row.appendChild(name);
       row.appendChild(renameBtn);
       row.appendChild(routineBtn);
