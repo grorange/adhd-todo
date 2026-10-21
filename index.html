@@ -637,7 +637,26 @@
 (function(){
   "use strict";
 
-  var STORAGE_KEY = "adhd_todo_v2";
+  // Keep old browser data readable while moving to one canonical namespace.
+  var STORAGE_PREFIX="selftalkie_breakdowntodo_",LEGACY_STORAGE_PREFIX="adhd_todo_";
+  function legacyStorageKey(key){return key.indexOf(STORAGE_PREFIX)===0?LEGACY_STORAGE_PREFIX+key.slice(STORAGE_PREFIX.length):key;}
+  var projectStorage={
+    getItem:function(key){
+      var value=window.localStorage.getItem(key),oldKey=legacyStorageKey(key);
+      if(value!==null){if(oldKey!==key){try{window.localStorage.removeItem(oldKey);}catch(error){}}return value;}
+      if(oldKey===key)return null;
+      value=window.localStorage.getItem(oldKey);
+      if(value!==null){try{window.localStorage.setItem(key,value);window.localStorage.removeItem(oldKey);}catch(error){/* Read the legacy value if storage is full. */}}
+      return value;
+    },
+    setItem:function(key,value){
+      var oldKey=legacyStorageKey(key);
+      try{window.localStorage.setItem(key,value);if(oldKey!==key)window.localStorage.removeItem(oldKey);}
+      catch(error){if(oldKey!==key&&window.localStorage.getItem(oldKey)!==null)window.localStorage.setItem(oldKey,value);else throw error;}
+    }
+  };
+
+  var STORAGE_KEY = "selftalkie_breakdowntodo_v2";
   var leftPane = document.getElementById("leftPane");
   leftPane.querySelectorAll("[id]").forEach(function(e){e.dataset.localId=e.id;});
   var rightPane = leftPane.cloneNode(true);
@@ -660,7 +679,7 @@
     historyView=paneElement(pane,"historyView");
   }
   function savePaneLayout(){
-    localStorage.setItem("adhd_todo_dual_panes",JSON.stringify(paneContexts.map(function(p){return {projectId:p.projectId,tab:p.tab};})));
+    projectStorage.setItem("selftalkie_breakdowntodo_dual_panes",JSON.stringify(paneContexts.map(function(p){return {projectId:p.projectId,tab:p.tab};})));
   }
   function focusPane(pane){
     bindPane(pane);
@@ -669,7 +688,7 @@
   }
   function initializePanes(){
     var saved=[];
-    try{saved=JSON.parse(localStorage.getItem("adhd_todo_dual_panes")) || [];}catch(e){}
+    try{saved=JSON.parse(projectStorage.getItem("selftalkie_breakdowntodo_dual_panes")) || [];}catch(e){}
     paneContexts.forEach(function(p,i){
       p.projectId=saved[i] && saved[i].projectId || (i===0 ? state.activeProjectId : (state.projects[1] || state.projects[0] || {}).id) || null;
       if(saved[i] && ["list","execute","history"].indexOf(saved[i].tab)>=0)p.tab=saved[i].tab;
@@ -708,11 +727,11 @@
       walk(n.children);
     });})(p.tasks);});
   }
-  var VIEW_KEY = "adhd_todo_view_settings";
+  var VIEW_KEY = "selftalkie_breakdowntodo_view_settings";
   var viewPresets = {compact:{width:960,density:60}, balanced:{width:1120,density:80}, relaxed:{width:1280,density:100}};
   var viewSettings = {width:1280,density:100,panels:"dual",background:"#e6daef"};
   try{
-    var storedView = JSON.parse(localStorage.getItem(VIEW_KEY));
+    var storedView = JSON.parse(projectStorage.getItem(VIEW_KEY));
     if(storedView && typeof storedView === "object"){
       if(/^#[0-9a-f]{6}$/i.test(storedView.background))viewSettings.background=storedView.background.toLowerCase()==="#f3edff"?"#e6daef":storedView.background;
       if(storedView.panels==="single")viewSettings.panels="single";
@@ -758,7 +777,7 @@
   }
   function saveViewSettings(){
     applyViewSettings();
-    try{localStorage.setItem(VIEW_KEY,JSON.stringify(viewSettings));}catch(e){}
+    try{projectStorage.setItem(VIEW_KEY,JSON.stringify(viewSettings));}catch(e){}
   }
   viewButton.addEventListener("click",function(){
     viewPanel.hidden=false;viewPanel.showModal();
@@ -874,7 +893,7 @@
 
   function load(){
     try{
-      var raw = localStorage.getItem(STORAGE_KEY);
+      var raw = projectStorage.getItem(STORAGE_KEY);
       if(raw){
         var p = JSON.parse(raw);
         state.projects = p.projects || [];
@@ -887,8 +906,8 @@
     }catch(e){}
     // v1 마이그레이션: 이전 투두리스트1/2의 미완료 태스크만 가져옴
     try{
-      ["adhd_todo_col1_v1","adhd_todo_col2_v1"].forEach(function(key, i){
-        var raw = localStorage.getItem(key);
+      ["selftalkie_breakdowntodo_col1_v1","selftalkie_breakdowntodo_col2_v1"].forEach(function(key, i){
+        var raw = projectStorage.getItem(key);
         if(!raw) return;
         var old = JSON.parse(raw);
         if(old.tasks && old.tasks.length){
@@ -904,7 +923,7 @@
     }catch(e){}
   }
   function save(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    projectStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     window.dispatchEvent(new Event('jjogaera-change'));
   }
   function activeProject(){
@@ -1041,10 +1060,10 @@
     save(); renderAll();
   }
   var projectManager = document.getElementById("projectManager");
-  projectManager.open = localStorage.getItem("adhd_todo_manager_open") === "true";
+  projectManager.open = projectStorage.getItem("selftalkie_breakdowntodo_manager_open") === "true";
   projectManager.addEventListener("toggle", function(){
     document.getElementById("workspace").classList.toggle("manager-open", projectManager.open);
-    localStorage.setItem("adhd_todo_manager_open", String(projectManager.open));
+    projectStorage.setItem("selftalkie_breakdowntodo_manager_open", String(projectManager.open));
   });
   function openCategoryPicker(){
     var pane=currentPane,dialog=el("dialog","category-dialog");
@@ -1091,9 +1110,9 @@
     addInput.focus();
   }
   var collapsedTrees = {};
-  try { collapsedTrees = JSON.parse(localStorage.getItem("adhd_todo_collapsed_trees")) || {}; } catch(e) {}
+  try { collapsedTrees = JSON.parse(projectStorage.getItem("selftalkie_breakdowntodo_collapsed_trees")) || {}; } catch(e) {}
   function collapsedKey(id){ return state.activeProjectId + ":" + id; }
-  function saveCollapsedTrees(){ localStorage.setItem("adhd_todo_collapsed_trees", JSON.stringify(collapsedTrees)); }
+  function saveCollapsedTrees(){ projectStorage.setItem("selftalkie_breakdowntodo_collapsed_trees", JSON.stringify(collapsedTrees)); }
   function setAllCollapsed(collapsed){
     var p = activeProject(); if(!p) return;
     (function walk(nodes){ nodes.forEach(function(n){

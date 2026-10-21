@@ -1,4 +1,4 @@
-# 쪼개라! 투두리스트
+# SelfTalkie Breakdown To Do
 
 GitHub Pages에서 동작하는 트리형 할 일 앱. 로그인 없이 기존 브라우저 저장을 사용할 수 있고, Google 로그인 시 Firebase의 계정별 저장소로 자동 동기화합니다.
 
@@ -30,3 +30,11 @@ GitHub Pages에서 동작하는 트리형 할 일 앱. 로그인 없이 기존 �
 배포 규칙: `firebase deploy --only firestore:rules --project selftalkie-fd7e7`.
 
 Firebase 웹 설정의 API 키는 앱 식별용 공개 설정입니다. 관리자 자격 증명과 로그인 토큰은 저장소에 넣지 않습니다. 데이터 권한은 `firestore.rules`가 Google 로그인 계정의 UID별로 제한합니다.
+
+
+## Repository and browser storage
+
+Repository: `grorange/selftalkie_breakdowntodo`.
+Pages: https://grorange.github.io/selftalkie_breakdowntodo/
+
+Browser keys use `selftalkie_breakdowntodo_`. The storage adapter reads the old namespace once, copies a value to the canonical key, then removes the old key only after a successful write. Existing canonical values take precedence. If browser storage is full, legacy reads/writes remain available rather than presenting empty tasks. Firebase account/collection IDs are unchanged. GitHub Pages paths on this account share an origin, so changing the repository path does not require transferring browser data between domains.
