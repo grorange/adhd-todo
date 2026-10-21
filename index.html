@@ -410,6 +410,51 @@
   .category-dialog{border:1px solid #e1ddeb;border-radius:12px;padding:18px;max-width:360px;width:calc(100% - 32px);max-height:80vh;color:#393346;}
   .category-dialog h2{font-size:16px;margin:0 0 12px;}.category-option{display:block;width:100%;text-align:left;padding:12px;border:0;border-radius:6px;margin-bottom:5px;background:#f5f3f9;color:#53496c;cursor:pointer;}.category-option[aria-pressed=true]{background:#e9e2fa;}.category-dialog::backdrop{background:#28233460;}
 
+
+  :root{--workspace-bg:#f3edff;}
+  body{background:var(--workspace-bg);}
+  .topbar{background:color-mix(in srgb,var(--workspace-bg) 78%,white);border-bottom-color:#ffffff60;}
+  .workspace-tools{display:flex;align-items:center;justify-content:flex-end;gap:5px;padding:6px 10px;background:#ffffff45;}
+  .workspace-tools button{width:auto;height:auto;padding:4px 7px!important;font-size:10px!important;line-height:1.4;font-weight:400;border:1px solid #ffffff80!important;border-radius:5px;color:#7a7089;background:#ffffff60;white-space:nowrap;}
+  .col-card.task-pane{background:transparent;}
+  .task-pane .tabs{background:#ffffff65;}
+  .task-pane .add-row{flex-wrap:nowrap;gap:6px;}
+  .task-pane .add-row input[type=text]{flex:1 1 0;min-width:0;background:#eee5fc;border:1px solid #cbb9e6;color:#514561;}
+  .task-pane .add-row input::placeholder{color:#8c7b9f;}
+  .task-pane .add-row .btn{padding:7px 12px;font-size:12px;border-radius:6px;background:#9379be;}
+  .task-row{background:#ffffffb8;}
+  .project-divider{grid-column:1/-1;border:0;border-top:1px solid #afa0c150;width:100%;margin:17px 0 5px;}
+  #workspace>.project-manager{background:#ffffff50;margin-top:0;border:0;}
+  .background-settings{padding:12px 0;font-size:14px;font-weight:600;}
+  .background-colors{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;}
+  .background-colors button{width:27px;height:27px;border:1px solid #c5bdd0;border-radius:50%;cursor:pointer;}
+  .background-colors button[aria-pressed=true]{outline:2px solid #8c71b6;outline-offset:2px;}
+  .background-colors input{width:32px;height:29px;border:0;padding:0;background:transparent;cursor:pointer;}
+
+
+  #viewSettings{inset:0;margin:auto;width:320px;max-width:calc(100vw - 28px);height:fit-content;max-height:85dvh;border:1px solid #e2e2e2;border-radius:10px;padding:16px;background:#fff;color:#444;box-shadow:none;overflow:auto;}
+  #viewSettings::backdrop{background:rgba(0,0,0,.35);backdrop-filter:none;}
+  #viewSettings .view-settings-head{margin:0 0 12px;padding:0;background:transparent;color:#333;}
+  #viewSettings .view-settings-head strong{font-size:14px;letter-spacing:0;}
+  #viewSettings label{font-size:11.5px;color:#666;font-weight:400;}
+  #viewSettings .background-settings{padding:0;margin:0 0 12px;}
+  #viewSettings .background-colors{margin-top:6px;gap:8px;}
+  #viewSettings .background-colors button{width:24px;height:24px;}
+  #viewSettings .panel-mode{display:block;margin:10px 0 12px;}
+  #viewSettings .panel-mode select{display:block;width:100%;font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;}
+  #viewSettings .btn{font-size:11px;font-weight:400;padding:6px 9px;border:0;border-radius:6px;background:#eee;color:#555;}
+  #viewSettings .view-presets{gap:5px;margin-bottom:12px;}
+  #viewSettings .view-presets [aria-pressed=true]{background:#e6d9f2;color:#685078;}
+  #viewSettings .view-controls{padding-top:10px;gap:10px;border-top:1px solid #eee;}
+  #viewSettings .view-controls input{margin:7px 0;}
+  #viewSettings .view-controls span{font-size:10px;color:#999;}
+  #viewSettings .settings-account{border-top:1px solid #eee;margin-top:12px;padding-top:10px;}
+  #viewSettings .settings-account h3{font-size:11.5px;font-weight:400;margin:0 0 7px;color:#666;}
+  #viewSettings #cloudSync{border:0;border-radius:0;background:transparent;padding:0!important;margin:0;gap:6px!important;}
+  #viewSettings #cloudSync [data-cloud-status]{font-size:11px!important;flex-basis:100%!important;color:#888;}
+  #viewSettings .settings-tools{padding:0;border:0;gap:6px;margin:8px 0 0;}
+  #viewSettings .settings-footer{display:flex;justify-content:flex-end;margin-top:16px;}
+
 </style>
 </head>
 <body>
@@ -417,9 +462,6 @@
   <div class="topbar">
     <h1>Breakdown To Do</h1>
     <div class="topbar-actions">
-      <button class="header-icon" id="categoryBtn" title="카테고리 변경" aria-label="카테고리 변경">▱</button>
-      <button class="header-icon" id="treeToggleAll" title="모두 접기" aria-label="모두 접기">⇤</button>
-      <button class="btn btn-ghost" id="selftalkieSendBtn" title="완료한 일을 Task Note로 보내기" aria-label="Task Note로 보내기">↗</button>
       <button class="btn btn-neutral" id="viewSettingsBtn" aria-label="설정" title="설정" aria-expanded="false" aria-controls="viewSettings">⚙</button>
     </div>
   </div>
@@ -440,8 +482,23 @@
     <button class="btn btn-neutral" data-history-close>닫기</button><div data-history-list></div>
   </dialog>
   <dialog id="viewSettings" class="view-settings" hidden aria-label="설정">
-    <div class="view-settings-head"><div><span class="settings-eyebrow">PREFERENCES</span><strong>화면과 계정 설정</strong></div><button class="btn btn-neutral" id="viewSettingsClose">닫기</button></div>
-  <section id="cloudSync" class="view-settings" aria-label="계정 동기화" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div class="view-settings-head"><strong>설정</strong></div>
+    <div class="background-settings"><label for="viewBackground">배경 색상</label><div class="background-colors">
+      <button type="button" data-background="#f3edff" aria-label="연보라" style="background:#f3edff"></button><button type="button" data-background="#b2c7da" aria-label="파스텔 블루" style="background:#b2c7da"></button><button type="button" data-background="#fef9c3" aria-label="연노랑" style="background:#fef9c3"></button><button type="button" data-background="#d9f2e6" aria-label="민트" style="background:#d9f2e6"></button><button type="button" data-background="#f2d9df" aria-label="연분홍" style="background:#f2d9df"></button><button type="button" data-background="#dbeafe" aria-label="하늘색" style="background:#dbeafe"></button><input id="viewBackground" type="color" value="#f3edff" aria-label="직접 배경 색상 선택">
+    </div></div>
+    <label class="panel-mode">작업 패널 <select id="panelMode"><option value="single">한 화면</option><option value="dual">두 화면 나란히</option></select></label>
+    <div class="view-presets" aria-label="화면 프리셋">
+      <button class="btn btn-neutral" data-view-preset="compact">촘촘하게</button>
+      <button class="btn btn-neutral" data-view-preset="balanced">적당하게</button>
+      <button class="btn btn-neutral" data-view-preset="relaxed">여유롭게</button>
+      <button class="btn btn-ghost" id="viewSettingsReset">기본값 복원</button>
+    </div>
+    <div class="view-controls">
+      <label for="viewWidth">인터페이스 너비 <output id="viewWidthValue" for="viewWidth"></output><input id="viewWidth" type="range" min="680" max="1600" step="20"><span>좁게 ↔ 넓게 · 작은 화면에서는 화면 너비에 맞춰집니다.</span></label>
+      <label for="viewDensity">항목 간격 <output id="viewDensityValue" for="viewDensity"></output><input id="viewDensity" type="range" min="50" max="120" step="5"><span>촘촘하게 ↔ 여유롭게 · 목록, 버튼, 카드의 여백을 함께 조절합니다.</span></label>
+    </div>
+
+    <div class="settings-account"><h3>계정 및 데이터</h3>  <section id="cloudSync" class="view-settings" aria-label="계정 동기화" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <span data-cloud-status role="status" style="font-size:13px;flex:1">이 기기에 저장 중</span>
     <button class="btn btn-neutral" data-cloud-login>Google 로그인</button>
     <button class="btn btn-neutral" data-cloud-logout hidden>로그아웃</button>
@@ -455,31 +512,29 @@
       <button class="btn btn-neutral" id="importBtn">백업 불러오기</button>
       <input type="file" id="importInput" accept="application/json,.json" hidden>
     </div>
-    <label class="panel-mode">작업 패널 <select id="panelMode"><option value="single">한 화면</option><option value="dual">두 화면 나란히</option></select></label>
-    <div class="view-presets" aria-label="화면 프리셋">
-      <button class="btn btn-neutral" data-view-preset="compact">촘촘하게</button>
-      <button class="btn btn-neutral" data-view-preset="balanced">적당하게</button>
-      <button class="btn btn-neutral" data-view-preset="relaxed">여유롭게</button>
-      <button class="btn btn-ghost" id="viewSettingsReset">기본값 복원</button>
-    </div>
-    <div class="view-controls">
-      <label for="viewWidth">인터페이스 너비 <output id="viewWidthValue" for="viewWidth"></output><input id="viewWidth" type="range" min="680" max="1600" step="20"><span>좁게 ↔ 넓게 · 작은 화면에서는 화면 너비에 맞춰집니다.</span></label>
-      <label for="viewDensity">항목 간격 <output id="viewDensityValue" for="viewDensity"></output><input id="viewDensity" type="range" min="50" max="120" step="5"><span>촘촘하게 ↔ 여유롭게 · 목록, 버튼, 카드의 여백을 함께 조절합니다.</span></label>
-    </div>
+</div>
+    <div class="settings-footer"><button class="btn btn-neutral" id="viewSettingsClose">닫기</button></div>
   </dialog>
 
+
+  <div class="workspace-tools" aria-label="프로젝트와 기록 도구">
+      <button class="header-icon" id="categoryBtn" title="프로젝트 변경" aria-label="프로젝트 변경">프로젝트 변경</button>
+      <button class="header-icon" id="treeToggleAll" title="모두 접기" aria-label="모두 접기">모두 접기</button>
+      <button class="btn btn-ghost" id="selftalkieSendBtn" title="완료한 일을 Task Note로 보내기" aria-label="Task Note로 보내기">Task Note로 전송</button>
+  </div>
   <div class="columns" id="workspace">
     <!-- 1칼럼: 진행중 프로젝트 -->
     <div class="col-card task-pane" id="leftPane">
       <div id="activeProjHead" class="active-proj-head"></div>
       <div class="tabs" id="mainTabs">
         <button class="tab-btn" data-tab="list">할 일 수집</button>
-        <button class="tab-btn active" data-tab="execute">Play!</button>
+        <button class="tab-btn active" data-tab="execute">▶ Play!</button>
         <button class="tab-btn history-tab" data-tab="history" aria-label="성공의 기록" title="성공의 기록"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="3" width="15" height="18" rx="2"/><path d="M3 7h4M3 12h4M3 17h4M10 8h6M10 12h6M10 16h4"/></svg></button>
       </div>
       <div class="panel" id="panel-list">
         <div class="add-row">
           <input type="text" id="addInput" placeholder="할 일 입력 후 Enter" maxlength="300" enterkeyhint="done" autocomplete="off">
+          <button class="btn btn-accent" id="addBtn" type="button">추가</button>
         </div>
         <div class="task-list" id="taskList"></div>
       </div>
@@ -491,9 +546,10 @@
       </div>
     </div>
 
+    <hr class="project-divider" aria-hidden="true">
     <details class="col-card project-manager" id="projectManager">
       <summary class="col-title proj"><span class="dot"></span>프로젝트 관리 <span class="summary-hint">펼치기 / 접기</span></summary>
-      <p class="proj-hint">프로젝트를 클릭하면 마지막으로 사용한 작업 패널에 열립니다. 각 패널 위의 카테고리 메뉴로도 선택할 수 있습니다.</p>
+      <p class="proj-hint">프로젝트를 클릭하면 마지막으로 사용한 작업 패널에 열립니다. 각 패널 위의 프로젝트 메뉴로도 선택할 수 있습니다.</p>
       <div class="add-row">
         <input type="text" id="projInput" placeholder="새 프로젝트 이름 후 Enter" maxlength="100">
         <button class="btn btn-accent" id="projAddBtn">추가</button>
@@ -571,7 +627,7 @@
   }
   function focusPane(pane){
     bindPane(pane);
-    var treeButton=document.getElementById("treeToggleAll");var closed=allTreesCollapsed();treeButton.textContent=closed?"⊞":"⊟";treeButton.title=closed?"모두 펼치기":"모두 접기";treeButton.setAttribute("aria-label",treeButton.title);
+    var treeButton=document.getElementById("treeToggleAll");var closed=allTreesCollapsed();treeButton.textContent=closed?"모두 펼치기":"모두 접기";treeButton.title=closed?"모두 펼치기":"모두 접기";treeButton.setAttribute("aria-label",treeButton.title);
     paneContexts.forEach(function(p){p.root.classList.toggle("focused",p===pane);});
   }
   function initializePanes(){
@@ -584,6 +640,7 @@
         p.root.addEventListener(type,function(){focusPane(p);},true);
       });
       p.root.querySelectorAll(".tab-btn").forEach(function(btn){btn.addEventListener("click",function(){p.tab=btn.dataset.tab;savePaneLayout();renderAll();});});
+      paneElement(p,"addBtn").addEventListener("click",function(){addTask(false);});
       paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(false);}});
       var list=paneElement(p,"taskList");
       list.addEventListener("dragover",function(e){
@@ -616,10 +673,11 @@
   }
   var VIEW_KEY = "adhd_todo_view_settings";
   var viewPresets = {compact:{width:960,density:60}, balanced:{width:1120,density:80}, relaxed:{width:1280,density:100}};
-  var viewSettings = {width:1280,density:100,panels:"dual"};
+  var viewSettings = {width:1280,density:100,panels:"dual",background:"#f3edff"};
   try{
     var storedView = JSON.parse(localStorage.getItem(VIEW_KEY));
     if(storedView && typeof storedView === "object"){
+      if(/^#[0-9a-f]{6}$/i.test(storedView.background))viewSettings.background=storedView.background;
       if(storedView.panels==="single")viewSettings.panels="single";
       if(Number.isFinite(storedView.width)) viewSettings.width = Math.max(680,Math.min(1600,Math.round(storedView.width/20)*20));
       if(Number.isFinite(storedView.density)) viewSettings.density = Math.max(50,Math.min(120,Math.round(storedView.density/5)*5));
@@ -629,7 +687,12 @@
   var viewButton = document.getElementById("viewSettingsBtn");
   var viewWidth = document.getElementById("viewWidth");
   var viewDensity = document.getElementById("viewDensity");
+  document.getElementById("viewBackground").addEventListener("input",function(e){viewSettings.background=e.target.value;saveViewSettings();});
+  document.querySelectorAll("[data-background]").forEach(function(button){button.addEventListener("click",function(){viewSettings.background=button.dataset.background;saveViewSettings();});});
   function applyViewSettings(){
+    document.documentElement.style.setProperty("--workspace-bg",viewSettings.background);
+    document.getElementById("viewBackground").value=viewSettings.background;
+    document.querySelectorAll("[data-background]").forEach(function(button){button.setAttribute("aria-pressed",String(button.dataset.background===viewSettings.background));});
     document.documentElement.style.setProperty("--ui-width",viewSettings.width+"px");
     document.documentElement.style.setProperty("--ui-space",String(viewSettings.density/100));
     rightPane.hidden = viewSettings.panels==="single";
@@ -669,11 +732,11 @@
   document.querySelectorAll("[data-view-preset]").forEach(function(btn){
     btn.addEventListener("click",function(){
       var preset=viewPresets[btn.dataset.viewPreset];
-      viewSettings={width:preset.width,density:preset.density,panels:viewSettings.panels};saveViewSettings();
+      viewSettings={width:preset.width,density:preset.density,panels:viewSettings.panels,background:viewSettings.background};saveViewSettings();
     });
   });
   document.getElementById("viewSettingsReset").addEventListener("click",function(){
-    viewSettings={width:1280,density:100,panels:viewSettings.panels};saveViewSettings();
+    viewSettings={width:1280,density:100,panels:viewSettings.panels,background:"#f3edff"};saveViewSettings();
   });
   applyViewSettings();
 
@@ -936,9 +999,9 @@
   });
   function openCategoryPicker(){
     var pane=currentPane,dialog=el("dialog","category-dialog");
-    dialog.appendChild(el("h2",null,"카테고리 변경"));
+    dialog.appendChild(el("h2",null,"프로젝트 변경"));
     state.projects.forEach(function(project){var button=el("button","category-option",project.name);button.setAttribute("aria-pressed",String(project.id===pane.projectId));button.addEventListener("click",function(){focusPane(pane);selectProject(project.id);dialog.close();});dialog.appendChild(button);});
-    if(!state.projects.length)dialog.appendChild(el("p",null,"아래 프로젝트 관리에서 카테고리를 만들어주세요."));
+    if(!state.projects.length)dialog.appendChild(el("p",null,"아래 프로젝트 관리에서 프로젝트를 만들어주세요."));
     var close=el("button","btn btn-neutral","닫기");close.onclick=function(){dialog.close();};dialog.appendChild(close);dialog.addEventListener("close",function(){dialog.remove();});document.body.appendChild(dialog);dialog.showModal();
   }
   document.getElementById("categoryBtn").addEventListener("click",openCategoryPicker);
@@ -950,7 +1013,7 @@
       activeProjHead.appendChild(el("div","empty-msg","아래 프로젝트 관리에서 첫 프로젝트를 만들어보세요."));
       return;
     }
-    var category=el("button","pane-category",(activeProject()||{}).name||"카테고리 선택");category.title="카테고리 변경";category.addEventListener("click",openCategoryPicker);activeProjHead.appendChild(category);
+    var category=el("button","pane-category",(activeProject()||{}).name||"프로젝트 선택");category.title="프로젝트 변경";category.addEventListener("click",openCategoryPicker);activeProjHead.appendChild(category);
 
     var p = activeProject();
     if(!p) return;
@@ -1577,7 +1640,7 @@
     var events = state.integrationEvents || [];
     var pending = events.filter(function(e){return !e.sentAt;});
     var btn = document.getElementById("selftalkieSendBtn");
-    btn.textContent=selftalkieSending?"…":"↗";btn.title="완료한 일을 Task Note로 보내기 · "+pending.length+"건";btn.setAttribute("aria-label",btn.title);
+    btn.textContent=selftalkieSending?"전송 중…":"Task Note로 전송";btn.title="완료한 일을 Task Note로 보내기 · "+pending.length+"건";btn.setAttribute("aria-label",btn.title);
     btn.disabled = selftalkieSending;
     var queue = document.getElementById("selftalkieQueue");
     queue.replaceChildren(el("strong",null,"전송 대기 " + pending.length + "건 · 전송 완료 " + (events.length-pending.length) + "건"));
