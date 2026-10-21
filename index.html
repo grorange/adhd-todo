@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>쪼개라! 투두리스트</title>
+<title>Breakdown To Do</title>
 <style>
   :root{
     --bg:#f4f1ea;
@@ -367,13 +367,59 @@
   .project-delete-dialog p{line-height:1.7;overflow-wrap:anywhere;}
   .project-delete-dialog button{margin-right:8px;}
   .project-delete-dialog::backdrop{background:#17213d70;}
+
+  body{background:#fff;}
+  .wrap{padding:0 0 16px;}
+  .topbar{position:sticky;top:0;z-index:12;flex-wrap:nowrap;justify-content:space-between;margin:0;padding:9px 10px;border-bottom:1px solid #e8e9ef;background:#fff;gap:4px;}
+  .topbar h1{font-size:14px;font-weight:650;letter-spacing:-.3px;white-space:nowrap;}
+  .topbar-actions{gap:3px;flex-wrap:nowrap;}
+  .topbar-actions button,.header-icon{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;padding:0!important;border:0!important;border-radius:50%;background:#f5f5f9;color:#6d6a80;font-size:18px!important;cursor:pointer;}
+  #workspace{gap:8px;padding:0 8px;}
+  .col-card.task-pane{padding:0 2px 8px;border:0;border-radius:0;box-shadow:none;background:white;}
+  .task-pane.focused{box-shadow:none;}
+  .active-proj-head{margin:5px 0 0;}
+  .single-pane .active-proj-head{display:none;}
+  .pane-category{border:0;background:transparent;color:#797386;font-size:11px;padding:4px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .task-pane .tabs{margin:4px 0 8px;padding:2px;background:#f4f3f8;border:0;border-radius:6px;gap:3px;}
+  .task-pane .tab-btn{padding:8px 4px;font-size:12px;border-radius:5px;}
+  .task-pane .history-tab{flex-basis:32px;}
+  .add-row{margin:0 0 5px;}
+  .add-row input[type=text]{padding:8px 9px;font-size:13px;border-radius:6px;}
+  .task-list{gap:calc(4px * var(--ui-space));padding:2px 0 8px;}
+  .task-row{min-width:0;gap:3px;padding:calc(5px * var(--ui-space)) 4px;border-radius:6px;}
+  .task-row .task-text{font-size:13px;padding:3px 1px;}
+  .task-row input[type=checkbox]{width:16px;height:16px;}
+  .drag-handle{font-size:14px;padding:3px;}
+  .tree-spacer{flex-basis:12px;width:12px;}.tree-toggle{flex-basis:20px;width:20px;height:23px;font-size:11px;}
+  .row-delete{padding:3px 4px;}
+  .execute-card{padding:9px 2px 0;text-align:center;}
+  .execute-path{font-size:11px;margin:0 0 5px;color:#92909c;}
+  .task-pane .execute-task-text{font-size:18px;line-height:1.45;margin:4px 0 7px;}
+  .execute-next{font-size:12px;margin:0 0 5px;color:#85818f;}
+  .timer-row{margin:4px 0 11px;gap:6px;}.timer-row .execute-timer{font-size:11px;font-weight:400;color:#96929f;}
+  .timer-reset{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;padding:0;font-size:16px;border:0;}
+  .execute-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;text-align:center;}
+  .task-pane .act-btn{align-items:center;justify-content:center;text-align:center;padding:10px 4px;gap:3px;font-size:12px;border-radius:8px;}
+  .act-btn small{font-size:10px;}.act-d,.act-e{grid-column:auto;}
+  .act-a{background:#f0edf9;color:#6650b2;}.act-c{grid-column:1/-1;background:#7560ce;color:white;}
+  .act-c>span{display:flex;align-items:center;justify-content:center;gap:7px;font-size:15px;}
+  .split-icon{display:inline-flex;width:23px;height:23px;}.split-icon svg{width:100%;height:100%;}
+  .act-f{background:#f8f2f3;color:#a77880;padding:7px!important;}
+  .np-badge{font-size:9px;padding:1px 4px;}
+  #workspace>.project-manager{padding:9px 10px;margin-top:4px;}
+  .category-dialog{border:1px solid #e1ddeb;border-radius:12px;padding:18px;max-width:360px;width:calc(100% - 32px);max-height:80vh;color:#393346;}
+  .category-dialog h2{font-size:16px;margin:0 0 12px;}.category-option{display:block;width:100%;text-align:left;padding:12px;border:0;border-radius:6px;margin-bottom:5px;background:#f5f3f9;color:#53496c;cursor:pointer;}.category-option[aria-pressed=true]{background:#e9e2fa;}.category-dialog::backdrop{background:#28233460;}
+
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
+    <h1>Breakdown To Do</h1>
     <div class="topbar-actions">
-      <button class="btn btn-ghost" id="selftalkieSendBtn">▶ Task Note로 보내기 · 0건</button>
+      <button class="header-icon" id="categoryBtn" title="카테고리 변경" aria-label="카테고리 변경">▱</button>
+      <button class="header-icon" id="treeToggleAll" title="모두 접기" aria-label="모두 접기">⇤</button>
+      <button class="btn btn-ghost" id="selftalkieSendBtn" title="완료한 일을 Task Note로 보내기" aria-label="Task Note로 보내기">↗</button>
       <button class="btn btn-neutral" id="viewSettingsBtn" aria-label="설정" title="설정" aria-expanded="false" aria-controls="viewSettings">⚙</button>
     </div>
   </div>
@@ -404,12 +450,12 @@
 
   </section>
     <div class="settings-tools">
-      <button class="btn btn-neutral" id="selftalkieSettingsBtn">Task Note 전송 연결 설정</button>
+      <button class="btn btn-neutral" id="selftalkieSettingsBtn">완료 기록 보내기 설정</button>
       <button class="btn btn-neutral" id="exportBtn">백업 저장</button>
       <button class="btn btn-neutral" id="importBtn">백업 불러오기</button>
       <input type="file" id="importInput" accept="application/json,.json" hidden>
     </div>
-    <label class="panel-mode">작업 패널 <select id="panelMode"><option value="single">싱글 패널</option><option value="dual">듀얼 패널</option></select></label>
+    <label class="panel-mode">작업 패널 <select id="panelMode"><option value="single">한 화면</option><option value="dual">두 화면 나란히</option></select></label>
     <div class="view-presets" aria-label="화면 프리셋">
       <button class="btn btn-neutral" data-view-preset="compact">촘촘하게</button>
       <button class="btn btn-neutral" data-view-preset="balanced">적당하게</button>
@@ -433,13 +479,7 @@
       </div>
       <div class="panel" id="panel-list">
         <div class="add-row">
-          <input type="text" id="addInput" placeholder="할 일 입력 후 Enter" maxlength="300">
-          <button class="btn btn-ghost" id="addTopBtn">상단추가</button>
-          <button class="btn btn-accent" id="addBtn">하단추가</button>
-        </div>
-        <div class="tree-controls" aria-label="할 일 트리 보기">
-          <button class="btn btn-neutral" id="collapseAllBtn">모두 접기</button>
-          <button class="btn btn-neutral" id="expandAllBtn">모두 펼치기</button>
+          <input type="text" id="addInput" placeholder="할 일 입력 후 Enter" maxlength="300" enterkeyhint="done" autocomplete="off">
         </div>
         <div class="task-list" id="taskList"></div>
       </div>
@@ -479,7 +519,8 @@
 
 <div class="overlay" id="selftalkieOvl" role="dialog" aria-modal="true" aria-labelledby="selftalkieTitle">
   <div class="overlay-box" style="max-height:90vh;overflow:auto;">
-    <h2 id="selftalkieTitle">SelfTalkie 연결</h2>
+    <h2 id="selftalkieTitle">완료한 일을 Task Note에 기록</h2>
+    <p class="hint">완료한 할 일을 해당 시간의 SelfTalkie Task Note에 붙입니다. Google 데이터 동기화와는 별도 기능입니다. 앱 안에서는 연결 코드 없이 전송됩니다.</p>
     <p class="hint">같은 PC에서 SelfTalkie를 실행하고, 설정 → 쪼개라 연결에서 코드를 복사하세요. 완료 시각에 맞는 블록으로 보내며, 기존 일기는 유지됩니다.</p>
     <label class="sync-label" for="selftalkieToken">연결 코드</label>
     <input class="sync-input" id="selftalkieToken" type="password" autocomplete="off" placeholder="SelfTalkie에서 복사한 코드">
@@ -530,6 +571,7 @@
   }
   function focusPane(pane){
     bindPane(pane);
+    var treeButton=document.getElementById("treeToggleAll");var closed=allTreesCollapsed();treeButton.textContent=closed?"⊞":"⊟";treeButton.title=closed?"모두 펼치기":"모두 접기";treeButton.setAttribute("aria-label",treeButton.title);
     paneContexts.forEach(function(p){p.root.classList.toggle("focused",p===pane);});
   }
   function initializePanes(){
@@ -542,11 +584,7 @@
         p.root.addEventListener(type,function(){focusPane(p);},true);
       });
       p.root.querySelectorAll(".tab-btn").forEach(function(btn){btn.addEventListener("click",function(){p.tab=btn.dataset.tab;savePaneLayout();renderAll();});});
-      paneElement(p,"addTopBtn").addEventListener("click",function(){addTask(true);});
-      paneElement(p,"addBtn").addEventListener("click",function(){addTask(false);});
       paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(false);}});
-      paneElement(p,"collapseAllBtn").addEventListener("click",function(){setAllCollapsed(true);});
-      paneElement(p,"expandAllBtn").addEventListener("click",function(){setAllCollapsed(false);});
       var list=paneElement(p,"taskList");
       list.addEventListener("dragover",function(e){
         if(taskDrag && activeProject() && !e.target.closest(".task-row")){e.preventDefault();list.classList.add("drag-over");}
@@ -896,23 +934,23 @@
     document.getElementById("workspace").classList.toggle("manager-open", projectManager.open);
     localStorage.setItem("adhd_todo_manager_open", String(projectManager.open));
   });
+  function openCategoryPicker(){
+    var pane=currentPane,dialog=el("dialog","category-dialog");
+    dialog.appendChild(el("h2",null,"카테고리 변경"));
+    state.projects.forEach(function(project){var button=el("button","category-option",project.name);button.setAttribute("aria-pressed",String(project.id===pane.projectId));button.addEventListener("click",function(){focusPane(pane);selectProject(project.id);dialog.close();});dialog.appendChild(button);});
+    if(!state.projects.length)dialog.appendChild(el("p",null,"아래 프로젝트 관리에서 카테고리를 만들어주세요."));
+    var close=el("button","btn btn-neutral","닫기");close.onclick=function(){dialog.close();};dialog.appendChild(close);dialog.addEventListener("close",function(){dialog.remove();});document.body.appendChild(dialog);dialog.showModal();
+  }
+  document.getElementById("categoryBtn").addEventListener("click",openCategoryPicker);
+  function allTreesCollapsed(){var branches=[];var project=activeProject();if(project)(function walk(nodes){nodes.forEach(function(n){if(n.status==="pending"&&n.children.length){branches.push(n);walk(n.children);}});})(project.tasks);return branches.length>0&&branches.every(function(n){return !!collapsedTrees[collapsedKey(n.id)];});}
+  document.getElementById("treeToggleAll").addEventListener("click",function(){setAllCollapsed(!allTreesCollapsed());});
   function renderActiveHead(){
     activeProjHead.innerHTML = "";
     if(state.projects.length === 0){
       activeProjHead.appendChild(el("div","empty-msg","아래 프로젝트 관리에서 첫 프로젝트를 만들어보세요."));
       return;
     }
-    var category = el("label","category-picker");
-    category.appendChild(el("span",null,"카테고리:"));
-    var select = el("select","category-select");
-    select.setAttribute("aria-label","카테고리");
-    state.projects.forEach(function(p){
-      var option=el("option",null,(p.isRoutine ? "🔁 " : "")+p.name);
-      option.value=p.id;select.appendChild(option);
-    });
-    select.value=state.activeProjectId;
-    select.addEventListener("change",function(){selectProject(select.value);});
-    category.appendChild(select);activeProjHead.appendChild(category);
+    var category=el("button","pane-category",(activeProject()||{}).name||"카테고리 선택");category.title="카테고리 변경";category.addEventListener("click",openCategoryPicker);activeProjHead.appendChild(category);
 
     var p = activeProject();
     if(!p) return;
@@ -1119,7 +1157,7 @@
       row.appendChild(cb);
       row.appendChild(ti);
       if(hasChildren && collapsed) row.appendChild(el("span","tree-count","하위 " + countPendingLeaves(task.children) + "개"));
-      if(task.nonProject) row.appendChild(el("span","np-badge","인서트"));
+      if(task.nonProject) row.appendChild(el("span","np-badge","별도"));
       var delBtn = el("button","row-delete","✕");
       delBtn.type = "button";
       delBtn.title = "삭제";
@@ -1150,13 +1188,13 @@
     timerEl.id = currentPane===paneContexts[0] ? "executeTimerDisplay" : "executeTimerDisplayRight";
     var timerRow=el("div","timer-row");
     timerRow.appendChild(timerEl);
-    var resetTimer=el("button","timer-reset","↺ 리셋");
+    var resetTimer=el("button","timer-reset","↺");resetTimer.setAttribute("aria-label","현재 할 일 타이머 초기화");
     resetTimer.type="button";resetTimer.title="현재 할 일의 타이머를 0부터 다시 시작";
     resetTimer.addEventListener("click",function(){
       current.timeSpentMs=0;current.runningSince=Date.now();
       save();renderAll();
     });
-    timerRow.appendChild(resetTimer);executeCard.appendChild(timerRow);
+    timerRow.appendChild(resetTimer);
     var path = findPath(p.tasks, current.id, []);
     if(path && path.length){
       executeCard.appendChild(el("div","execute-path", path.join(" › ")));
@@ -1172,23 +1210,25 @@
     })(p.tasks);
     executeCard.appendChild(el("div","execute-next", "Next: " + (queue[1] ? queue[1].text : "마지막 할 일이에요")));
 
+    executeCard.appendChild(timerRow);
     var actions = el("div","execute-actions");
     var mk = function(cls, label, sub, onClick){
       var b = el("button","act-btn "+cls);
       var strong = el("span",null,label);
+      if(cls==="act-c"){
+        var icon=el("span","split-icon");icon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 2.5C5.5 2 1.5 6.2 1.5 11.5c0 4.8 3.1 8.8 7.8 9.7l3.1-8.4-4.8.8Z"/><path fill="currentColor" opacity=".7" d="m15.2 3-3.1 7.2 4.8-.8-4.3 12.1c5.7-.1 9.9-4.3 9.9-9.6 0-4.1-2.7-7.6-7.3-8.9Z"/></svg>';strong.prepend(icon);
+      }
       b.appendChild(strong);
       if(sub) b.appendChild(el("small",null,sub));
       b.addEventListener("click", onClick);
       return b;
     };
-    actions.appendChild(mk("act-a","A. 했음","지금 할 수 있고 했음", function(){ resolveCurrent(current,"done"); }));
-    actions.appendChild(mk("act-b","B. 지금 못함","같은 묶음의 맨 뒤로 미루기", function(){ postpone(current); }));
-    actions.appendChild(mk("act-c","C. 쪼개기","부담스러운 일을 작은 단계로 나누기", function(){ splitCurrent(current); }));
-    actions.appendChild(mk("act-d","D. 프로젝트 · 앞에 삽입","지금 일 바로 앞에 끼워넣기", function(){ insertRelative(current, false, false); }));
-    actions.appendChild(mk("act-d","E. 프로젝트 · 뒤에 삽입","지금 일 바로 다음에 끼워넣기", function(){ insertRelative(current, false, true); }));
-    actions.appendChild(mk("act-e","F. 비프로젝트 · 앞에 삽입","딴짓을 바로 앞에", function(){ insertRelative(current, true, false); }));
-    actions.appendChild(mk("act-e","G. 비프로젝트 · 뒤에 삽입","딴짓을 바로 다음에", function(){ insertRelative(current, true, true); }));
-    actions.appendChild(mk("act-f","H. 포기","이 할 일 내려놓기", function(){
+    actions.appendChild(mk("act-a","▶ 했음","", function(){ resolveCurrent(current,"done"); }));
+    actions.appendChild(mk("act-b","Ⅱ 지금 못함","", function(){ postpone(current); }));
+    actions.appendChild(mk("act-c","쪼개기","작은 단계로 나누기", function(){ splitCurrent(current); }));
+    actions.appendChild(mk("act-d","← Insert | 앞에","", function(){ insertRelative(current, false, false); }));
+    actions.appendChild(mk("act-d","Insert | 뒤에 →","", function(){ insertRelative(current, false, true); }));
+    actions.appendChild(mk("act-f","■ 포기","", function(){
       if(confirm("이 항목을 포기할까요?")) resolveCurrent(current,"gaveup");
     }));
     executeCard.appendChild(actions);
@@ -1232,7 +1272,7 @@
   }
   function insertRelative(node, nonProject, after){
     var p = activeProject(); if(!p) return;
-    var title = nonProject ? "인서트 - 비프로젝트" : "인서트 - 프로젝트";
+    var title = nonProject ? "별도 할 일 추가" : "할 일 추가";
     openOvl(title + (after ? " · 뒤에" : " · 앞에"),"지금 일 바로 " + (after ? "다음" : "앞") + "에 끼워넣습니다. 여러 줄은 입력한 순서대로 들어갑니다.","", function(lines){
       if(lines.length === 0) return;
       var loc = locate(p.tasks, node.id);
@@ -1537,7 +1577,7 @@
     var events = state.integrationEvents || [];
     var pending = events.filter(function(e){return !e.sentAt;});
     var btn = document.getElementById("selftalkieSendBtn");
-    btn.textContent = selftalkieSending ? "SelfTalkie로 보내는 중…" : "▶ Task Note로 보내기 · " + pending.length + "건";
+    btn.textContent=selftalkieSending?"…":"↗";btn.title="완료한 일을 Task Note로 보내기 · "+pending.length+"건";btn.setAttribute("aria-label",btn.title);
     btn.disabled = selftalkieSending;
     var queue = document.getElementById("selftalkieQueue");
     queue.replaceChildren(el("strong",null,"전송 대기 " + pending.length + "건 · 전송 완료 " + (events.length-pending.length) + "건"));
@@ -1622,7 +1662,7 @@
       ["list","execute","history"].forEach(function(tab){paneElement(p,"panel-"+tab).classList.toggle("active",p.tab===tab);});
       renderActiveHead();renderTaskList();renderExecute();renderHistory();
     });
-    bindPane(original);
+    focusPane(original);
     renderProjects();savePaneLayout();save();
   }
 
