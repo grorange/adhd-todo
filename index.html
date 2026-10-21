@@ -514,6 +514,12 @@
     #workspace:not(.single-pane)>#rightPane{position:relative;align-self:stretch;}
     #workspace:not(.single-pane)>#rightPane::before{content:"";position:absolute;left:-17px;top:4px;bottom:8px;width:1px;background:var(--theme-border);opacity:.65;pointer-events:none;}
   }
+
+  .webpage-link{display:inline-flex;align-items:center;gap:5px;height:29px;padding:0 10px;border-radius:16px;background:var(--theme-surface,#f5f5f9);color:var(--theme-accent,#7860bd);font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;}
+  .webpage-link:hover{filter:brightness(.96);}
+  .webpage-link svg{width:14px;height:14px;}
+  .act-btn>span{display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+  .action-icon{width:16px;height:16px;flex:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none;}
 </style>
 </head>
 <body>
@@ -521,6 +527,7 @@
   <div class="topbar">
     <h1>Breakdown To Do</h1>
     <div class="topbar-actions">
+      <a class="webpage-link" href="https://grorange.github.io/selftalkie_breakdowntodo/" target="_blank" rel="noopener noreferrer" title="Breakdown 웹페이지 열기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>웹페이지</a>
       <button class="btn btn-neutral" id="viewSettingsBtn" aria-label="설정" title="설정" aria-expanded="false" aria-controls="viewSettings">⚙</button>
     </div>
   </div>
@@ -1346,6 +1353,8 @@
     var mk = function(cls, label, sub, onClick){
       var b = el("button","act-btn "+cls);
       var strong = el("span",null,label);
+      var iconPaths={"했음":'<path d="m5 12 4 4L19 6"/>',"지금 못함":'<path d="M8 5v14M16 5v14"/>',"앞에 Insert":'<path d="M5 4v16m14-8H9m4-4-4 4 4 4"/>',"뒤에 Insert":'<path d="M19 4v16M5 12h10m-4-4 4 4-4 4"/>',"포기":'<rect x="5" y="5" width="14" height="14" rx="2"/>'};
+      if(iconPaths[label]){var actionIcon=document.createElementNS("http://www.w3.org/2000/svg","svg");actionIcon.setAttribute("class","action-icon");actionIcon.setAttribute("viewBox","0 0 24 24");actionIcon.setAttribute("aria-hidden","true");actionIcon.innerHTML=iconPaths[label];strong.prepend(actionIcon);}
       if(cls==="act-c"){
         var icon=el("span","split-icon");icon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 2.5C5.5 2 1.5 6.2 1.5 11.5c0 4.8 3.1 8.8 7.8 9.7l3.1-8.4-4.8.8Z"/><path fill="currentColor" opacity=".7" d="m15.2 3-3.1 7.2 4.8-.8-4.3 12.1c5.7-.1 9.9-4.3 9.9-9.6 0-4.1-2.7-7.6-7.3-8.9Z"/></svg>';strong.prepend(icon);
       }
@@ -1354,12 +1363,12 @@
       b.addEventListener("click", onClick);
       return b;
     };
-    actions.appendChild(mk("act-a","▶ 했음","", function(){ resolveCurrent(current,"done"); }));
-    actions.appendChild(mk("act-b","Ⅱ 지금 못함","", function(){ postpone(current); }));
+    actions.appendChild(mk("act-a","했음","", function(){ resolveCurrent(current,"done"); }));
+    actions.appendChild(mk("act-b","지금 못함","", function(){ postpone(current); }));
     actions.appendChild(mk("act-c","쪼개기","작은 단계로 나누기", function(){ splitCurrent(current); }));
-    actions.appendChild(mk("act-d","← Insert | 앞에","", function(){ insertRelative(current, false, false); }));
-    actions.appendChild(mk("act-d","Insert | 뒤에 →","", function(){ insertRelative(current, false, true); }));
-    actions.appendChild(mk("act-f","■ 포기","", function(){
+    actions.appendChild(mk("act-d","앞에 Insert","", function(){ insertRelative(current, false, false); }));
+    actions.appendChild(mk("act-d","뒤에 Insert","", function(){ insertRelative(current, false, true); }));
+    actions.appendChild(mk("act-f","포기","", function(){
       if(confirm("이 항목을 포기할까요?")) resolveCurrent(current,"gaveup");
     }));
     executeCard.appendChild(actions);
