@@ -17,6 +17,7 @@ const desktopState=new URLSearchParams(location.hash.slice(1)).get('desktop-logi
 const embedded=new URLSearchParams(location.search).get('embedded')==='1' && window.parent!==window;
 if(desktopState){
   document.getElementById('viewSettings').hidden=false;
+  document.getElementById('viewSettings').showModal();
   history.replaceState(null,'',location.pathname);
   document.getElementById('workspace').style.display='none';
   document.querySelector('.topbar').style.display='none';
