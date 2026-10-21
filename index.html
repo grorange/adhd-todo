@@ -320,8 +320,8 @@
   .task-pane{min-width:0;}
   .task-pane.focused{border-color:var(--accent);}
   .pane-label{font-size:13px;}
-  .pane-drop-zone{padding:10px;border:1px dashed var(--line);border-radius:8px;font-size:11px;color:var(--sub);text-align:center;margin-top:10px;}
-  .pane-drop-zone.drag-over{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .task-list{min-height:48px;}
+  .task-list.drag-over{outline:2px dashed var(--accent);background:var(--accent-soft);border-radius:8px;}
   .task-pane .add-row{flex-wrap:wrap;}
   .task-pane .add-row input{flex-basis:160px;}
   .task-pane .act-btn{padding:calc(13px * var(--ui-space));}
@@ -516,6 +516,17 @@
       paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(false);}});
       paneElement(p,"collapseAllBtn").addEventListener("click",function(){setAllCollapsed(true);});
       paneElement(p,"expandAllBtn").addEventListener("click",function(){setAllCollapsed(false);});
+      var list=paneElement(p,"taskList");
+      list.addEventListener("dragover",function(e){
+        if(taskDrag && activeProject() && !e.target.closest(".task-row")){e.preventDefault();list.classList.add("drag-over");}
+      });
+      list.addEventListener("dragleave",function(){list.classList.remove("drag-over");});
+      list.addEventListener("drop",function(e){
+        list.classList.remove("drag-over");
+        if(e.target.closest(".task-row"))return;
+        e.preventDefault();var source=taskDrag;taskDrag=null;if(source)moveTask(source,null,"root");
+      });
+      list.addEventListener("dragend",function(){list.classList.remove("drag-over");});
 
     });
     focusPane(paneContexts[0]);
