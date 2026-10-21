@@ -314,6 +314,18 @@
   .tree-toggle{flex:0 0 24px;width:24px;height:28px;padding:0;border:0;border-radius:6px;background:var(--accent-soft);color:var(--accent);cursor:pointer;font-size:14px;}
   .tree-spacer{flex:0 0 24px;width:24px;}
   .tree-count{font-size:11px;color:var(--sub);white-space:nowrap;}
+  #workspace,#workspace.manager-open{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #workspace>.project-manager{grid-column:1 / -1;grid-row:auto;}
+  .task-pane{min-width:0;}
+  .task-pane.focused{border-color:var(--accent);}
+  .pane-label{font-size:13px;}
+  .pane-drop-zone{padding:10px;border:1px dashed var(--line);border-radius:8px;font-size:11px;color:var(--sub);text-align:center;margin-top:10px;}
+  .pane-drop-zone.drag-over{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .task-pane .add-row{flex-wrap:wrap;}
+  .task-pane .add-row input{flex-basis:160px;}
+  .task-pane .act-btn{padding:calc(13px * var(--ui-space));}
+  .task-pane .execute-task-text{font-size:clamp(22px,2vw,30px);}
+  @container(max-width:700px){#workspace,#workspace.manager-open{grid-template-columns:minmax(0,1fr);}}
 </style>
 </head>
 <body>
@@ -351,9 +363,10 @@
 
   <div class="columns" id="workspace">
     <!-- 1칼럼: 진행중 프로젝트 -->
-    <div class="col-card">
-      <h3 class="col-title"><span class="dot"></span>진행중 프로젝트</h3>
+    <div class="col-card task-pane" id="leftPane">
+      <h3 class="col-title"><span class="dot"></span><span class="pane-label">왼쪽 작업</span></h3>
       <div id="activeProjHead" class="active-proj-head"></div>
+      <div class="pane-drop-zone">여기로 드래그하면 이 프로젝트 맨 아래로 이동</div>
       <div class="tabs" id="mainTabs">
         <button class="tab-btn" data-tab="list">할 일 수집</button>
         <button class="tab-btn active" data-tab="execute">Play!</button>
@@ -383,7 +396,7 @@
     <!-- 2칼럼: 프로젝트 관리 -->
     <details class="col-card project-manager" id="projectManager">
       <summary class="col-title proj"><span class="dot"></span>프로젝트 관리 <span class="summary-hint">펼치기 / 접기</span></summary>
-      <p class="proj-hint">프로젝트를 클릭하면 선택됩니다. 이름 변경 버튼으로 수정하고, ⋮⋮을 드래그해 순서를 바꾸세요.</p>
+      <p class="proj-hint">프로젝트를 클릭하면 마지막으로 사용한 작업 패널에 열립니다. 각 패널 위의 칩으로도 선택할 수 있습니다.</p>
       <div class="add-row">
         <input type="text" id="projInput" placeholder="새 프로젝트 이름 후 Enter" maxlength="100">
         <button class="btn btn-accent" id="projAddBtn">추가</button>
@@ -449,6 +462,71 @@
   "use strict";
 
   var STORAGE_KEY = "adhd_todo_v2";
+  var leftPane = document.getElementById("leftPane");
+  leftPane.querySelectorAll("[id]").forEach(function(e){e.dataset.localId=e.id;});
+  var rightPane = leftPane.cloneNode(true);
+  rightPane.id = "rightPane";
+  rightPane.querySelectorAll("[id]").forEach(function(e){e.id += "Right";});
+  rightPane.querySelector(".pane-label").textContent = "오른쪽 작업";
+  leftPane.after(rightPane);
+  var paneContexts = [
+    {root:leftPane,projectId:null,tab:"execute"},
+    {root:rightPane,projectId:null,tab:"list"}
+  ];
+  var currentPane = paneContexts[0];
+  function paneElement(pane,id){return pane.root.querySelector('[data-local-id="'+id+'"]');}
+  function bindPane(pane){
+    currentPane=pane;
+    state.activeProjectId=pane.projectId;
+    activeProjHead=paneElement(pane,"activeProjHead");
+    addInput=paneElement(pane,"addInput");
+    taskListEl=paneElement(pane,"taskList");
+    executeCard=paneElement(pane,"executeCard");
+    historyView=paneElement(pane,"historyView");
+  }
+  function savePaneLayout(){
+    localStorage.setItem("adhd_todo_dual_panes",JSON.stringify(paneContexts.map(function(p){return {projectId:p.projectId,tab:p.tab};})));
+  }
+  function focusPane(pane){
+    bindPane(pane);
+    paneContexts.forEach(function(p){p.root.classList.toggle("focused",p===pane);});
+  }
+  function initializePanes(){
+    var saved=[];
+    try{saved=JSON.parse(localStorage.getItem("adhd_todo_dual_panes")) || [];}catch(e){}
+    paneContexts.forEach(function(p,i){
+      p.projectId=saved[i] && saved[i].projectId || (i===0 ? state.activeProjectId : (state.projects[1] || state.projects[0] || {}).id) || null;
+      if(saved[i] && ["list","execute","history"].indexOf(saved[i].tab)>=0)p.tab=saved[i].tab;
+      ["pointerdown","click","keydown","input","change","blur","dragstart","dragover","drop","dragend"].forEach(function(type){
+        p.root.addEventListener(type,function(){focusPane(p);},true);
+      });
+      p.root.querySelectorAll(".tab-btn").forEach(function(btn){btn.addEventListener("click",function(){p.tab=btn.dataset.tab;savePaneLayout();renderAll();});});
+      paneElement(p,"addTopBtn").addEventListener("click",function(){addTask(true);});
+      paneElement(p,"addBtn").addEventListener("click",function(){addTask(false);});
+      paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(false);}});
+      paneElement(p,"collapseAllBtn").addEventListener("click",function(){setAllCollapsed(true);});
+      paneElement(p,"expandAllBtn").addEventListener("click",function(){setAllCollapsed(false);});
+      var zone=p.root.querySelector(".pane-drop-zone");
+      zone.addEventListener("dragover",function(e){if(taskDrag && activeProject()){e.preventDefault();zone.classList.add("drag-over");}});
+      zone.addEventListener("dragleave",function(){zone.classList.remove("drag-over");});
+      zone.addEventListener("drop",function(e){e.preventDefault();zone.classList.remove("drag-over");var source=taskDrag;taskDrag=null;if(source)moveTask(source,null,"root");});
+    });
+    focusPane(paneContexts[0]);
+  }
+  function syncPaneTimers(){
+    var running=[];
+    paneContexts.forEach(function(p){
+      if(p.tab!=="execute")return;
+      var project=state.projects.find(function(x){return x.id===p.projectId;});
+      var node=project && findActionable(project.tasks);
+      if(node && running.indexOf(node)<0)running.push(node);
+    });
+    state.projects.forEach(function(p){(function walk(nodes){nodes.forEach(function(n){
+      if(running.indexOf(n)>=0){if(!n.runningSince)n.runningSince=Date.now();}
+      else pauseTimerNode(n);
+      walk(n.children);
+    });})(p.tasks);});
+  }
   var VIEW_KEY = "adhd_todo_view_settings";
   var viewPresets = {compact:{width:960,density:60}, balanced:{width:1120,density:80}, relaxed:{width:1280,density:100}};
   var viewSettings = {width:1280,density:100};
@@ -567,17 +645,8 @@
     }
   }
   function pauseGlobalTimer(){
-    if(!timerNodeId) return;
-    var proj = null;
-    for(var i=0;i<state.projects.length;i++){
-      if(state.projects[i].id === timerProjectId){ proj = state.projects[i]; break; }
-    }
-    if(proj){
-      var loc = locate(proj.tasks, timerNodeId);
-      if(loc) pauseTimerNode(loc.arr[loc.idx]);
-    }
-    timerNodeId = null;
-    timerProjectId = null;
+    finalizeAllRunning();
+    timerNodeId=null;timerProjectId=null;
   }
   function finalizeAllRunning(){
     state.projects.forEach(function(p){
@@ -730,7 +799,8 @@
     ovlTitle.textContent = title;
     ovlHint.textContent = hint;
     ovlTextarea.value = initialText;
-    ovlOnConfirm = onConfirm;
+    var ownerPane=currentPane;
+    ovlOnConfirm = function(lines){focusPane(ownerPane);onConfirm(lines);};
     ovl.classList.add("active");
     setTimeout(function(){ ovlTextarea.focus(); ovlTextarea.select(); }, 0);
   }
@@ -746,23 +816,6 @@
     if(cb) cb(lines);
   });
   ovl.addEventListener("click", function(e){ if(e.target === ovl) closeOvl(); });
-
-  // ---------- 탭 ----------
-  var tabBtns = document.querySelectorAll("#mainTabs .tab-btn");
-  var panels = {
-    list: document.getElementById("panel-list"),
-    execute: document.getElementById("panel-execute"),
-    history: document.getElementById("panel-history")
-  };
-  tabBtns.forEach(function(btn){
-    btn.addEventListener("click", function(){
-      tabBtns.forEach(function(b){ b.classList.remove("active"); });
-      btn.classList.add("active");
-      Object.keys(panels).forEach(function(k){ panels[k].classList.remove("active"); });
-      panels[btn.dataset.tab].classList.add("active");
-      renderAll();
-    });
-  });
 
   function resetRoutine(p){
     if(!confirm("\""+p.name+"\" 루틴을 리셋할까요?\n지금까지 기록은 '지난 루틴 기록'으로 남고, 리스트는 처음 상태로 돌아갑니다.")) return;
@@ -794,6 +847,8 @@
   function selectProject(id){
     if(state.activeProjectId !== id) pauseGlobalTimer();
     state.activeProjectId = id;
+    currentPane.projectId = id;
+    savePaneLayout();
     save(); renderAll();
   }
   var projectManager = document.getElementById("projectManager");
@@ -854,12 +909,6 @@
     save(); renderAll();
     addInput.focus();
   }
-  document.getElementById("addTopBtn").addEventListener("click", function(){ addTask(true); });
-  document.getElementById("addBtn").addEventListener("click", function(){ addTask(false); });
-  addInput.addEventListener("keydown", function(e){
-    if(e.key === "Enter"){ e.preventDefault(); addTask(); }
-  });
-
   var collapsedTrees = {};
   try { collapsedTrees = JSON.parse(localStorage.getItem("adhd_todo_collapsed_trees")) || {}; } catch(e) {}
   function collapsedKey(id){ return state.activeProjectId + ":" + id; }
@@ -871,10 +920,9 @@
       else delete collapsedTrees[collapsedKey(n.id)];
       walk(n.children);
     }); })(p.tasks);
-    saveCollapsedTrees(); renderTaskList();
+    saveCollapsedTrees(); renderAll();
   }
-  document.getElementById("collapseAllBtn").addEventListener("click",function(){setAllCollapsed(true);});
-  document.getElementById("expandAllBtn").addEventListener("click",function(){setAllCollapsed(false);});
+
   function renderTaskList(){
     taskListEl.innerHTML = "";
     var p = activeProject();
@@ -919,7 +967,7 @@
 
   var taskDrag = null;
   function clearDropHints(){
-    taskListEl.querySelectorAll(".drop-before,.drop-after,.drop-inside").forEach(function(row){
+    document.querySelectorAll(".drop-before,.drop-after,.drop-inside").forEach(function(row){
       row.classList.remove("drop-before","drop-after","drop-inside");
       row.removeAttribute("data-drop-label");
     });
@@ -929,22 +977,32 @@
     var offset = y - r.top;
     return offset < r.height * .24 ? "before" : (offset > r.height * .76 ? "after" : "inside");
   }
-  function moveTask(sourceId, targetId, mode){
-    var p = activeProject();
-    if(!p || sourceId === targetId) return;
-    var from = locate(p.tasks, sourceId), target = locate(p.tasks, targetId);
-    if(!from || !target) return;
-    var moved = from.arr[from.idx], anchor = target.arr[target.idx];
-    if(locate(moved.children, targetId)) return;
+  function moveTask(source, targetId, mode){
+    var p=activeProject();
+    var sourceProject=state.projects.find(function(x){return x.id===source.projectId;});
+    if(!p || !sourceProject || (p===sourceProject && source.id===targetId))return;
+    var from=locate(sourceProject.tasks,source.id);
+    var target=targetId ? locate(p.tasks,targetId) : null;
+    if(!from || (targetId && !target))return;
+    var moved=from.arr[from.idx],anchor=target && target.arr[target.idx];
+    if(p===sourceProject && targetId && locate(moved.children,targetId))return;
     pauseGlobalTimer();
-    from.arr.splice(from.idx, 1);
-    target = locate(p.tasks, targetId);
-    var destination = mode === "inside" ? anchor.children : target.arr;
-    var index = mode === "inside" ? destination.length : target.idx + (mode === "after" ? 1 : 0);
-    destination.splice(index, 0, moved);
-    if(mode === "inside"){ delete collapsedTrees[collapsedKey(targetId)]; saveCollapsedTrees(); }
-    sweep(p.tasks);
-    save(); renderAll();
+    from.arr.splice(from.idx,1);
+    target=targetId ? locate(p.tasks,targetId) : null;
+    var destination=mode==="root" ? p.tasks : mode==="inside" ? anchor.children : target.arr;
+    var index=(mode==="inside" || mode==="root") ? destination.length : target.idx+(mode==="after" ? 1 : 0);
+    destination.splice(index,0,moved);
+    if(p!==sourceProject){
+      (function transfer(n){
+        var oldKey=sourceProject.id+":"+n.id,newKey=p.id+":"+n.id;
+        if(collapsedTrees[oldKey])collapsedTrees[newKey]=true;
+        delete collapsedTrees[oldKey];n.children.forEach(transfer);
+      })(moved);
+    }
+    if(mode==="inside")delete collapsedTrees[collapsedKey(targetId)];
+    saveCollapsedTrees();
+    sweep(sourceProject.tasks);if(p!==sourceProject)sweep(p.tasks);
+    save();renderAll();
   }
   function renderNodes(nodes, depth){
     nodes.forEach(function(task, idx){
@@ -956,7 +1014,7 @@
       handle.draggable = true;
       handle.title = "드래그: 가운데는 하위로, 삽입선은 같은 단계로";
       handle.addEventListener("dragstart", function(e){
-        taskDrag = task.id;
+        taskDrag = {id:task.id,projectId:state.activeProjectId};
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", task.id);
         row.classList.add("dragging");
@@ -968,8 +1026,8 @@
       });
       row.addEventListener("dragover", function(e){
         clearDropHints();
-        if(!taskDrag || taskDrag === task.id) return;
-        var p = activeProject(), source = locate(p.tasks, taskDrag);
+        if(!taskDrag || (taskDrag.projectId === state.activeProjectId && taskDrag.id === task.id)) return;
+        var p = state.projects.find(function(x){return x.id===taskDrag.projectId;}), source = p && locate(p.tasks, taskDrag.id);
         if(!source || locate(source.arr[source.idx].children, task.id)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
@@ -981,7 +1039,7 @@
         if(!row.contains(e.relatedTarget)) clearDropHints();
       });
       row.addEventListener("drop", function(e){
-        e.preventDefault();
+        e.preventDefault();e.stopPropagation();
         var source = taskDrag;
         taskDrag = null;
         clearDropHints();
@@ -1020,7 +1078,7 @@
         toggle.addEventListener("click",function(){
           var key = collapsedKey(task.id);
           if(collapsedTrees[key]) delete collapsedTrees[key]; else collapsedTrees[key] = true;
-          saveCollapsedTrees(); renderTaskList();
+          saveCollapsedTrees(); renderAll();
           var updated = Array.from(taskListEl.querySelectorAll(".task-row")).find(function(r){return r.dataset.taskId === task.id;});
           if(updated) updated.querySelector(".tree-toggle").focus();
         });
@@ -1048,25 +1106,16 @@
     executeCard.innerHTML = "";
     var p = activeProject();
     if(!p){
-      if(timerNodeId) pauseGlobalTimer();
       executeCard.appendChild(el("div","celebrate","프로젝트를 선택하세요."));
       return;
     }
     var current = findActionable(p.tasks);
     if(!current){
-      if(timerProjectId === p.id) pauseGlobalTimer();
       executeCard.appendChild(el("div","celebrate","🎉 지금 할 일이 없습니다."));
       return;
     }
-    if(!(timerNodeId === current.id && timerProjectId === p.id)){
-      if(timerNodeId) pauseGlobalTimer();
-      if(!current.runningSince) current.runningSince = Date.now();
-      timerNodeId = current.id;
-      timerProjectId = p.id;
-      save();
-    }
     var timerEl = el("div","execute-timer","⏱ " + formatDuration((current.timeSpentMs||0) + (current.runningSince ? Date.now()-current.runningSince : 0)));
-    timerEl.id = "executeTimerDisplay";
+    timerEl.id = currentPane===paneContexts[0] ? "executeTimerDisplay" : "executeTimerDisplayRight";
     executeCard.appendChild(timerEl);
     executeCard.appendChild(el("div","execute-progress","남은 "+countPendingLeaves(p.tasks)+"개 중 1번째"));
     var path = findPath(p.tasks, current.id, []);
@@ -1258,9 +1307,7 @@
       var wrap = el("div");
       var row = el("div","proj-row" + (p.id === state.activeProjectId ? " active" : ""));
       row.addEventListener("click", function(){
-        if(state.activeProjectId !== p.id) pauseGlobalTimer();
-        state.activeProjectId = p.id;
-        save(); renderAll();
+        selectProject(p.id);
       });
       row.addEventListener("dragover", function(e){
         if(!projDrag) return;
@@ -1616,15 +1663,24 @@
 
   // ---------- 렌더 ----------
   function renderAll(){
+    var original=currentPane;
+    paneContexts.forEach(function(p,i){
+      if(!state.projects.some(function(x){return x.id===p.projectId;}))p.projectId=(state.projects[i] || state.projects[0] || {}).id || null;
+    });
+    syncPaneTimers();
     renderSelftalkie();
-    renderActiveHead();
-    renderTaskList();
-    renderExecute();
-    renderHistory();
-    renderProjects();
+    paneContexts.forEach(function(p){
+      bindPane(p);
+      p.root.querySelectorAll(".tab-btn").forEach(function(b){b.classList.toggle("active",b.dataset.tab===p.tab);});
+      ["list","execute","history"].forEach(function(tab){paneElement(p,"panel-"+tab).classList.toggle("active",p.tab===tab);});
+      renderActiveHead();renderTaskList();renderExecute();renderHistory();
+    });
+    bindPane(original);
+    renderProjects();savePaneLayout();save();
   }
 
   load();
+  initializePanes();
   if(!state.projects.length) projectManager.open = true;
   document.getElementById("workspace").classList.toggle("manager-open", projectManager.open);
   finalizeAllRunning();
@@ -1633,19 +1689,14 @@
   save();
 
   setInterval(function(){
-    if(!timerNodeId) return;
-    var disp = document.getElementById("executeTimerDisplay");
-    if(!disp) return;
-    var proj = null;
-    for(var i=0;i<state.projects.length;i++){
-      if(state.projects[i].id === timerProjectId){ proj = state.projects[i]; break; }
-    }
-    if(!proj) return;
-    var loc = locate(proj.tasks, timerNodeId);
-    if(!loc) return;
-    var node = loc.arr[loc.idx];
-    disp.textContent = "⏱ " + formatDuration((node.timeSpentMs||0) + (node.runningSince ? Date.now()-node.runningSince : 0));
-  }, 1000);
+    paneContexts.forEach(function(p){
+      var project=state.projects.find(function(x){return x.id===p.projectId;});
+      var node=project && findActionable(project.tasks);
+      var disp=p.root.querySelector(".execute-timer");
+      if(node && disp)disp.textContent="⏱ "+formatDuration((node.timeSpentMs||0)+(node.runningSince ? Date.now()-node.runningSince : 0));
+    });
+  },1000);
+
 })();
 </script>
 </body>
