@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {flatten,materialize,mergeMaps,mergeRecord} from '../sync-core.mjs';
+const task=(id,text=id,children=[])=>({id,text,children,status:'pending',timeSpentMs:0,runningSince:null});
+const state={projects:[{id:'p1',name:'일',tasks:[task('a','엄마',[task('b')]),task('c')],inserts:[],routineLog:[]}],activeProjectId:'p1',integrationEvents:[]};
+test('tree and metadata round trip',()=>assert.deepEqual(materialize(flatten(state),'p1'),state));
+test('running timers are device local',()=>{const s=structuredClone(state);s.projects[0].tasks[0].runningSince=123;assert.equal(flatten(s).t_a.fields.runningSince,undefined)});
+test('independent edits on same task merge',()=>{const b=flatten(state),l=structuredClone(b),r=structuredClone(b);l.t_b.fields.text='수정';r.t_b.fields.status='done';const m=mergeMaps(b,l,r);assert.equal(m.conflicts.length,0);assert.equal(m.value.t_b.fields.text,'수정');assert.equal(m.value.t_b.fields.status,'done')});
+test('same text changed on two devices preserves conflict',()=>{const b=flatten(state),l=structuredClone(b),r=structuredClone(b);l.t_b.fields.text='로컬';r.t_b.fields.text='원격';const m=mergeMaps(b,l,r);assert.equal(m.conflicts.length,1);assert.equal(m.conflicts[0].remote.fields.text,'원격')});
+test('delete against edit is conflict; unchanged deletion stays deleted',()=>{const b=flatten(state),r=structuredClone(b);delete r.t_b;const l=structuredClone(b);l.t_b.fields.text='보존';assert.equal(mergeMaps(b,l,r).conflicts.length,1);assert.equal(mergeMaps(b,b,r).value.t_b,undefined)});
+test('concurrent insertion keeps both tasks',()=>{const b=flatten(state),l=structuredClone(b),r=structuredClone(b);l.t_d={...b.t_c,id:'d'};r.t_e={...b.t_c,id:'e'};const m=mergeMaps(b,l,r);assert.ok(m.value.t_d&&m.value.t_e);assert.equal(m.conflicts.length,0)});
+test('cross-project move preserves subtree',()=>{const s=structuredClone(state);s.projects.push({id:'p2',name:'둘',tasks:[s.projects[0].tasks.shift()]});const restored=materialize(flatten(s),'p2');assert.equal(restored.projects[1].tasks[0].children[0].id,'b')});
+test('concurrent ancestry cycle is recovered as roots without losing nodes',()=>{const records=flatten(state);records.t_a.parentId='b';const s=materialize(records);assert.equal(s.projects[0].tasks.length,3)});
+test('orphan after project deletion remains recoverable',()=>{const records=flatten(state);delete records.p_p1;const s=materialize(records);assert.equal(s.projects[0].name,'복구된 할 일');assert.equal(s.projects[0].tasks[0].children[0].id,'b')});
+test('unsafe and duplicate IDs are rejected',()=>{const s=structuredClone(state);s.projects[0].tasks.push(task('b'));assert.throws(()=>flatten(s));s.projects[0].id='../x';assert.throws(()=>flatten(s))});
+test('same edit needs no resolution',()=>assert.deepEqual(mergeRecord({a:1},{a:2},{a:2}),{value:{a:2},conflicts:[]}));

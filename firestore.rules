@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) {
+      return request.auth != null && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true;
+    }
+    match /users/{uid}/todo/{item} {
+      function validHistory() {
+        let n = resource.data.previous.size();
+        let p = request.resource.data.previous;
+        return request.resource.data.revision == resource.data.revision + 1
+          && p.size() == (n < 3 ? n + 1 : 3)
+          && p[0] == {'revision': resource.data.revision, 'data': resource.data.data}
+          && (n < 1 || p[1] == resource.data.previous[0])
+          && (n < 2 || p[2] == resource.data.previous[1]);
+      }
+      function validData() {
+        let d = request.resource.data.data;
+        return d == null || (d is map && d.id is string && d.fields is map
+          && ((d.kind == 'task' && item == 't_' + d.id)
+            || (d.kind == 'project' && item == 'p_' + d.id)
+            || (d.kind == 'event' && item == 'e_' + d.id)));
+      }
+      function validEnvelope() {
+        return request.resource.data.keys().hasOnly(['schema','data','revision','updatedAt','previous'])
+        && request.resource.data.schema == 1
+        && request.resource.data.revision is int
+        && request.resource.data.revision > 0
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.previous is list
+        && validData();
+      }
+      allow read: if owner(uid);
+      allow create: if owner(uid) && validEnvelope()
+        && request.resource.data.revision == 1 && request.resource.data.previous.size() == 0;
+      allow update: if owner(uid) && validEnvelope() && validHistory();
+      // Deletions are tombstones so offline devices cannot resurrect old records.
+      allow delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

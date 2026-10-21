@@ -299,6 +299,7 @@
   .proj-row{padding:calc(10px * var(--ui-space));margin-bottom:calc(7px * var(--ui-space));}
   .view-settings{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px;}
   .view-settings[hidden]{display:none;}
+  #cloudSync [hidden]{display:none!important;}
   .view-settings-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   .view-presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
   .view-presets [aria-pressed="true"]{background:var(--accent);color:#fff;}
@@ -340,12 +341,36 @@
       <button class="btn btn-neutral" id="exportBtn">💾 백업 저장</button>
       <button class="btn btn-neutral" id="importBtn">📂 불러오기</button>
       <input type="file" id="importInput" accept="application/json,.json" style="display:none">
-      <button class="btn btn-neutral" id="syncSettingsBtn">⚙️ 동기화 설정</button>
-      <button class="btn btn-ghost" id="syncUpBtn">☁️ 올리기</button>
-      <button class="btn btn-ghost" id="syncDownBtn">⬇️ 받아오기</button>
+      <details><summary class="btn btn-ghost">기존 Gist 백업</summary>
+        <button class="btn btn-neutral" id="syncSettingsBtn">Gist 설정</button>
+        <button class="btn btn-ghost" id="syncUpBtn">Gist에 백업</button>
+        <button class="btn btn-ghost" id="syncDownBtn">Gist 백업 불러오기</button>
+      </details>
     </div>
   </div>
 
+  <section id="cloudSync" class="view-settings" aria-label="계정 동기화" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span data-cloud-status role="status" style="font-size:13px;flex:1">이 기기에 저장 중</span>
+    <button class="btn btn-neutral" data-cloud-login>Google 로그인</button>
+    <button class="btn btn-neutral" data-cloud-logout hidden>로그아웃</button>
+    <button class="btn btn-neutral" data-cloud-history hidden>복구 기록</button>
+    <button class="btn btn-primary" data-cloud-conflict hidden>동시 수정 확인</button>
+  </section>
+  <dialog id="cloudConflict" style="border:1px solid #e1e6f0;border-radius:16px;padding:24px;max-width:480px">
+    <h2 style="font-size:18px">두 기기의 수정 내용이 달라요</h2>
+    <p data-conflict-count></p>
+    <p>선택은 충돌한 항목에만 적용됩니다. 나머지 변경은 함께 반영됩니다.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-neutral" data-conflict-backup>양쪽 내용 백업</button>
+      <button class="btn btn-primary" data-conflict-choice="local">이 기기 내용 사용</button>
+      <button class="btn btn-neutral" data-conflict-choice="remote">다른 기기 내용 사용</button>
+      <button class="btn btn-ghost" data-conflict-close>나중에</button>
+    </div>
+  </dialog>
+  <dialog id="cloudHistory" style="border:1px solid #e1e6f0;border-radius:16px;padding:24px;max-width:600px;max-height:80vh;width:90%">
+    <h2 style="font-size:18px">복구 기록</h2><p>항목마다 수정·삭제 전 최근 3개 버전을 보관합니다.</p>
+    <button class="btn btn-neutral" data-history-close>닫기</button><div data-history-list></div>
+  </dialog>
   <section id="viewSettings" class="view-settings" hidden aria-label="화면 설정">
     <div class="view-settings-head"><strong>화면 설정</strong><button class="btn btn-neutral" id="viewSettingsClose">닫기</button></div>
     <p class="proj-hint">움직이는 즉시 화면에 적용됩니다. 설정은 이 브라우저에 자동 저장됩니다.</p>
@@ -694,6 +719,7 @@
   }
   function save(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.dispatchEvent(new Event('jjogaera-change'));
   }
   function activeProject(){
     for(var i=0;i<state.projects.length;i++){
@@ -1056,6 +1082,7 @@
       var ti = el("input","task-text");
       ti.type = "text";
       ti.value = task.text;
+      ti.addEventListener("input",function(){if(ti.value.trim()){task.text=ti.value;save();}});
       ti.addEventListener("blur", function(){
         var v = ti.value.trim();
         task.text = v || task.text;
@@ -1679,6 +1706,23 @@
     renderProjects();savePaneLayout();save();
   }
 
+  window.jjogaera={
+    getState:function(){return JSON.parse(JSON.stringify(state));},
+    applyState:function(next){
+      var focused=document.activeElement;
+      var editing=focused && focused.classList.contains("task-text") ? {id:focused.closest(".task-row").dataset.taskId,pane:focused.closest(".task-pane"),start:focused.selectionStart,end:focused.selectionEnd} : null;
+      var timers={};
+      state.projects.forEach(function(p){(function walk(nodes){nodes.forEach(function(n){if(n.runningSince)timers[n.id]=n.runningSince;walk(n.children);});})(p.tasks);});
+      state=next;
+      state.projects.forEach(function(p){(function walk(nodes){nodes.forEach(function(n){n.runningSince=timers[n.id]||null;walk(n.children);});})(p.tasks);});
+      renderAll();
+      if(editing){
+        var row=Array.from(editing.pane.querySelectorAll(".task-row")).find(function(r){return r.dataset.taskId===editing.id;});
+        var input=row && row.querySelector(".task-text");
+        if(input){input.focus({preventScroll:true});input.setSelectionRange(editing.start,editing.end);}
+      }
+    }
+  };
   load();
   initializePanes();
   if(!state.projects.length) projectManager.open = true;
@@ -1699,5 +1743,6 @@
 
 })();
 </script>
+<script type="module" src="cloud-bundle.js"></script>
 </body>
 </html>
