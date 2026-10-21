@@ -33,6 +33,8 @@ function downloadBackup(name,data){
   a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 login.onclick=async()=>{
+  if(login.disabled)return;
+  login.disabled=true;
   try{
     if(embedded){
       label.textContent='브라우저에서 Google 로그인을 완료해주세요.';
@@ -58,7 +60,7 @@ login.onclick=async()=>{
         label.textContent='SelfTalkie에 로그인했습니다. 이 창을 닫고 앱으로 돌아가세요.';login.hidden=true;
       }
     }
-  }catch(e){status('error',e);}
+  }catch(e){status('error',e);}finally{login.disabled=false;}
 };
 logout.onclick=async()=>{if(session){session.changed(flatten(window.jjogaera.getState()));await session.sync();}await signOut(auth);};
 resolve.onclick=()=>{
