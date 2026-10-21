@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Breakdown To Do</title>
 <style>
+  @font-face{font-family:"Breakdown Task";src:url("Pretendard-Medium.woff2") format("woff2");font-style:normal;font-weight:500;font-display:swap;}
   :root{
     --bg:#f4f1ea;
     --card:#ffffff;
@@ -411,7 +412,7 @@
   .category-dialog h2{font-size:16px;margin:0 0 12px;}.category-option{display:block;width:100%;text-align:left;padding:12px;border:0;border-radius:6px;margin-bottom:5px;background:#f5f3f9;color:#53496c;cursor:pointer;}.category-option[aria-pressed=true]{background:#e9e2fa;}.category-dialog::backdrop{background:#28233460;}
 
 
-  :root{--workspace-bg:#f3edff;}
+  :root{--workspace-bg:#e6daef;}
   body{background:var(--workspace-bg);}
   .topbar{background:color-mix(in srgb,var(--workspace-bg) 78%,white);border-bottom-color:#ffffff60;}
   .workspace-tools{display:flex;align-items:center;justify-content:flex-end;gap:5px;padding:6px 10px;background:#ffffff45;}
@@ -484,7 +485,7 @@
   .pane-category{background:var(--theme-surface);color:#556175;border-radius:5px;}
   .execute-card{background:var(--theme-surface);border:1px solid var(--theme-border);border-radius:12px;padding:13px 10px 10px;}
   .execute-path{color:#647084;font-size:11px;line-height:1.5;margin-bottom:7px;}
-  .task-pane .execute-task-text{font-size:19px;font-weight:500;line-height:1.55;letter-spacing:-.3px;color:#263247;margin:0 auto 10px;padding:0 3px;max-width:38ch;overflow-wrap:anywhere;word-break:keep-all;}
+  .task-pane .execute-task-text{font-family:"Breakdown Task",sans-serif;font-size:20px;font-weight:500;line-height:1.55;letter-spacing:-.3px;color:#263247;margin:0 auto 10px;padding:0 3px;max-width:38ch;overflow-wrap:anywhere;word-break:keep-all;}
   .execute-next{color:#637086;font-size:11px;line-height:1.5;margin-bottom:6px;}
   .timer-row{margin:4px 0 14px;}.timer-row .execute-timer{color:#69758a;}
   .execute-actions{gap:7px;}
@@ -504,8 +505,8 @@
   .topbar h1{font-size:13px;font-weight:600;}
   .workspace-tools{background:#fff;border-bottom:1px solid #e8e9ee;padding-top:6px;padding-bottom:6px;}
   .workspace-tools button{background:#f7f8fa;border:1px solid #e4e6eb!important;color:#677083;}
-  .task-pane .tabs{background:#fff;padding:8px 0;margin:0 0 10px;border-bottom:1px solid #e8e9ee;border-radius:0;}
-  .segment-track{background:#f3f4f7;}
+  .task-pane .tabs{background:transparent;padding:8px 0;margin:0 0 10px;border-bottom:0;border-radius:0;}
+  .segment-track{background:var(--theme-input);}
   .task-pane .history-tab{background:#fff;}
   .task-pane .history-tab.active{background:var(--theme-accent);}
   .execute-card{background:#ffffffee;border-color:#cdd2de;}
@@ -546,7 +547,7 @@
 
   </section></div>
     <div class="background-settings"><label for="viewBackground">배경 색상</label><div class="background-colors">
-      <button type="button" data-background="#f3edff" aria-label="연보라" style="background:#f3edff"></button><button type="button" data-background="#b2c7da" aria-label="파스텔 블루" style="background:#b2c7da"></button><button type="button" data-background="#fef9c3" aria-label="연노랑" style="background:#fef9c3"></button><button type="button" data-background="#d9f2e6" aria-label="민트" style="background:#d9f2e6"></button><button type="button" data-background="#f2d9df" aria-label="연분홍" style="background:#f2d9df"></button><button type="button" data-background="#dbeafe" aria-label="하늘색" style="background:#dbeafe"></button><input id="viewBackground" type="color" value="#f3edff" aria-label="직접 배경 색상 선택">
+      <button type="button" data-background="#e6daef" aria-label="연보라" style="background:#e6daef"></button><button type="button" data-background="#b2c7da" aria-label="파스텔 블루" style="background:#b2c7da"></button><button type="button" data-background="#fef9c3" aria-label="연노랑" style="background:#fef9c3"></button><button type="button" data-background="#d9f2e6" aria-label="민트" style="background:#d9f2e6"></button><button type="button" data-background="#f2d9df" aria-label="연분홍" style="background:#f2d9df"></button><button type="button" data-background="#dbeafe" aria-label="하늘색" style="background:#dbeafe"></button><input id="viewBackground" type="color" value="#e6daef" aria-label="직접 배경 색상 선택">
     </div></div>
     <label class="panel-mode">작업 패널 <select id="panelMode"><option value="single">한 화면</option><option value="dual">두 화면 나란히</option></select></label>
     <div class="view-presets" aria-label="화면 프리셋">
@@ -721,11 +722,11 @@
   }
   var VIEW_KEY = "adhd_todo_view_settings";
   var viewPresets = {compact:{width:960,density:60}, balanced:{width:1120,density:80}, relaxed:{width:1280,density:100}};
-  var viewSettings = {width:1280,density:100,panels:"dual",background:"#f3edff"};
+  var viewSettings = {width:1280,density:100,panels:"dual",background:"#e6daef"};
   try{
     var storedView = JSON.parse(localStorage.getItem(VIEW_KEY));
     if(storedView && typeof storedView === "object"){
-      if(/^#[0-9a-f]{6}$/i.test(storedView.background))viewSettings.background=storedView.background;
+      if(/^#[0-9a-f]{6}$/i.test(storedView.background))viewSettings.background=storedView.background.toLowerCase()==="#f3edff"?"#e6daef":storedView.background;
       if(storedView.panels==="single")viewSettings.panels="single";
       if(Number.isFinite(storedView.width)) viewSettings.width = Math.max(680,Math.min(1600,Math.round(storedView.width/20)*20));
       if(Number.isFinite(storedView.density)) viewSettings.density = Math.max(50,Math.min(120,Math.round(storedView.density/5)*5));
@@ -741,12 +742,14 @@
     var hex=viewSettings.background.slice(1),rgb=[0,2,4].map(function(i){return parseInt(hex.slice(i,i+2),16);});
     function tint(other,weight){return 'rgb('+rgb.map(function(v,i){return Math.round(v*weight+other[i]*(1-weight));}).join(',')+')';}
     document.documentElement.style.setProperty('--theme-surface',tint([255,255,255],.2));
-    document.documentElement.style.setProperty('--theme-workspace',tint([255,255,255],.45));
+    document.documentElement.style.setProperty('--theme-workspace',viewSettings.background);
     document.documentElement.style.setProperty('--theme-heading',tint([166,145,190],.65));
     var heading=rgb.map(function(v,i){return v*.65+[166,145,190][i]*.35;});
     document.documentElement.style.setProperty('--theme-heading-ink',heading[0]*.299+heading[1]*.587+heading[2]*.114<145?'#ffffff':'#263247');
     document.documentElement.style.setProperty('--theme-input',tint([255,255,255],.45));
-    document.documentElement.style.setProperty('--theme-accent',tint([51,65,85],.25));
+    var channels=rgb.map(function(v){return v/255;}),hi=Math.max.apply(null,channels),lo=Math.min.apply(null,channels),delta=hi-lo,hue=270;
+    if(delta>.02){hue=(hi===channels[0]?(channels[1]-channels[2])/delta:hi===channels[1]?(channels[2]-channels[0])/delta+2:(channels[0]-channels[1])/delta+4)*60;hue=(hue+360)%360;}
+    document.documentElement.style.setProperty('--theme-accent','hsl('+Math.round(hue)+',45%,38%)');
     document.documentElement.style.setProperty('--theme-border',tint([106,119,140],.45));
     document.documentElement.style.setProperty("--workspace-bg",viewSettings.background);
     document.getElementById("viewBackground").value=viewSettings.background;
@@ -794,7 +797,7 @@
     });
   });
   document.getElementById("viewSettingsReset").addEventListener("click",function(){
-    viewSettings={width:1280,density:100,panels:viewSettings.panels,background:"#f3edff"};saveViewSettings();
+    viewSettings={width:1280,density:100,panels:viewSettings.panels,background:"#e6daef"};saveViewSettings();
   });
   applyViewSettings();
 
