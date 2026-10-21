@@ -511,6 +511,11 @@
   .task-pane .history-tab.active{background:var(--theme-accent);}
   .execute-card{background:#ffffffee;border-color:#cdd2de;}
 
+  @container(min-width:701px){
+    #workspace:not(.single-pane){column-gap:32px;}
+    #workspace:not(.single-pane)>#rightPane{position:relative;align-self:stretch;}
+    #workspace:not(.single-pane)>#rightPane::before{content:"";position:absolute;left:-17px;top:4px;bottom:8px;width:1px;background:var(--theme-border);opacity:.65;pointer-events:none;}
+  }
 </style>
 </head>
 <body>
