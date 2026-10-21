@@ -18,7 +18,7 @@ const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),
   const contexts=await Promise.all([browser.newContext(),browser.newContext()]);
   const [a,b]=await Promise.all(contexts.map(c=>c.newPage()));const errors=[];
   const sub='sync-browser-'+Date.now();
-  for(const p of [a,b]){p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>d.accept());await p.goto('http://127.0.0.1:'+server.address().port);await p.waitForFunction(()=>window.testLogin);await p.evaluate(sub=>window.testLogin(sub),sub);}
+  for(const p of [a,b]){p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>d.accept());await p.goto('http://127.0.0.1:'+server.address().port);await p.waitForFunction(()=>window.testLogin);await p.evaluate(sub=>window.testLogin(sub),sub);await p.waitForFunction(()=>document.querySelector('[data-cloud-status]').textContent==='동기화 완료');}
   await a.evaluate(()=>window.jjogaera.applyState({projects:[{id:'browser_project',name:'브라우저 테스트',tasks:[{id:'browser_task',text:'동기화 전',status:'pending',children:[],timeSpentMs:0,runningSince:null}],inserts:[],routineLog:[]}],activeProjectId:'browser_project',integrationEvents:[]}));
   await b.waitForFunction(()=>window.jjogaera.getState().projects.some(p=>p.tasks.some(t=>t.text==='동기화 전')),{},{timeout:20000});
   await b.evaluate(()=>{const s=window.jjogaera.getState();s.projects[0].tasks[0].text='다른 창에서 수정';window.jjogaera.applyState(s)});
@@ -36,9 +36,9 @@ const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),
   await a.waitForFunction(()=>window.jjogaera.getState().projects[0]?.tasks[0]?.text==='다른 창에서 수정',{},{timeout:20000});
   await b.evaluate(()=>{const s=window.jjogaera.getState();for(let i=0;i<550;i++)s.projects[0].tasks.push({id:'bulk_'+i,text:'대량 '+i,status:'pending',children:[],runningSince:null,timeSpentMs:0});window.jjogaera.applyState(s)});
   await a.waitForFunction(()=>window.jjogaera.getState().projects[0]?.tasks.length===551,{},{timeout:40000});
-  await a.evaluate(()=>window.testLogout());await a.evaluate(()=>window.testLogin('separate-account'));
+  await a.evaluate(()=>window.testLogout());await a.evaluate(()=>window.testLogin('separate-account-'+Date.now()));
   await a.waitForFunction(()=>document.querySelector('[data-cloud-status]').textContent==='동기화 완료');
-  assert.equal(await a.evaluate(()=>window.jjogaera.getState().projects.length),0);
+  assert.deepEqual(await a.evaluate(()=>window.jjogaera.getState().projects.map(p=>p.name)),['기본프로젝트','루틴프로젝트']);
   await b.reload();await b.waitForFunction(()=>document.querySelector('[data-cloud-status]').textContent==='동기화 완료');
   assert.equal(await b.evaluate(()=>window.jjogaera.getState().projects[0].tasks[0].text),'다른 창에서 수정');
   await b.evaluate(()=>window.testLogout());
@@ -46,7 +46,7 @@ const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),
   await b.evaluate(()=>{const s=window.jjogaera.getState();s.projects[0].tasks[0].text='로그아웃 중 수정';window.jjogaera.applyState(s)});
   await b.evaluate(()=>window.testLogin('switch-account-'+Date.now()));
   await b.waitForFunction(()=>document.querySelector('[data-cloud-status]').textContent==='동기화 완료');
-  assert.equal(await b.evaluate(()=>window.jjogaera.getState().projects.length),0);
+  assert.deepEqual(await b.evaluate(()=>window.jjogaera.getState().projects.map(p=>p.name)),['기본프로젝트','루틴프로젝트']);
   await b.evaluate(sub=>window.testLogin(sub),sub);
   await b.waitForFunction(()=>document.querySelector('[data-cloud-status]').textContent==='동기화 완료');
   assert.equal(await b.evaluate(()=>window.jjogaera.getState().projects[0].tasks[0].text),'로그아웃 중 수정');
@@ -54,8 +54,8 @@ const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),
   await shared.goto('http://127.0.0.1:'+server.address().port);await shared.waitForFunction(()=>document.querySelector('[data-cloud-status]').textContent==='동기화 완료');
   assert.equal(await shared.evaluate(()=>window.jjogaera.getState().projects[0].tasks[0].text),'로그아웃 중 수정');
   await shared.evaluate(()=>window.testLogin('shared-switch-'+Date.now()));
-  await b.waitForFunction(()=>window.jjogaera.getState().projects.length===0);
-  await shared.waitForFunction(()=>window.jjogaera.getState().projects.length===0);
+  await b.waitForFunction(()=>window.jjogaera.getState().projects.length===2 && !window.jjogaera.getState().projects.some(p=>p.id==='browser_project'));
+  await shared.waitForFunction(()=>window.jjogaera.getState().projects.length===2 && !window.jjogaera.getState().projects.some(p=>p.id==='browser_project'));
   assert.deepEqual(errors,[]);console.log('PASS: two actual browser contexts, bidirectional edits, offline merge, account separation, reload persistence');
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

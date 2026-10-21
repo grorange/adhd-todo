@@ -132,7 +132,7 @@ onAuthStateChanged(auth,async user=>{
     }
     let local;
     if(stored)local=owner===uid?flatten(current):stored.local;
-    else if(!owner && current.projects.length){
+    else if(!owner && current.projects.length && !current.starterDemo){
       if(!confirm('현재 이 브라우저의 할 일을 '+user.email+' 계정에 연결할까요? 기존 데이터는 이 기기에 자동 백업됩니다.')){await signOut(auth);return;}
       localStorage.setItem('jjogaera_before_cloud',JSON.stringify(current));local=flatten(current);
     }else local={};
@@ -178,10 +178,17 @@ onAuthStateChanged(auth,async user=>{
     session=new SyncSession({adapter,local,base:stored?.base||{},apply,persist,status});
     persist(session.base,session.local);apply(local);
     const changes=stored?.cursor?query(ref,where('updatedAt','>=',new Timestamp(stored.cursor.seconds,stored.cursor.nanoseconds))):ref;
+    let firstServerSnapshot=true;
     unlisten=onSnapshot(changes,{includeMetadataChanges:true},snap=>{
       if(gen!==generation||snap.metadata.hasPendingWrites)return;
       for(const change of snap.docChanges())ingest(change.doc.id,change.doc.data());
       if(snap.metadata.fromCache)return;
+      if(firstServerSnapshot && !stored && !Object.keys(local).length && !Object.keys(remoteCache).length && snap.size===0){
+        const starter=window.jjogaera.starterState();
+        local=flatten(starter);session.changed(local);
+        window.jjogaera.applyState({...starter,cloudOwner:uid});
+      }
+      firstServerSnapshot=false;
       session.receive(structuredClone(remoteCache));
     },e=>status('error',e));
     logout.textContent=(user.displayName||user.email||'계정')+' · 로그아웃';

@@ -228,8 +228,8 @@
 
   /* 루틴 프로젝트 */
   .routine-toggle{
-    flex-shrink:0;border:none;background:transparent;font-size:15px;cursor:pointer;
-    padding:4px 6px;border-radius:6px;opacity:.35;
+    flex-shrink:0;border:1px solid var(--line);background:var(--card);color:var(--sub);font-size:12px;cursor:pointer;
+    padding:6px 9px;border-radius:6px;opacity:1;
   }
   .routine-toggle.active{opacity:1;background:var(--teal-soft);}
   .routine-reset-row{margin:10px 0 4px;}
@@ -906,6 +906,7 @@
         state.projects = p.projects || [];
         state.integrationEvents = p.integrationEvents || [];
         state.cloudOwner = p.cloudOwner || null;
+        state.starterDemo = p.starterDemo || false;
         state.activeProjectId = p.activeProjectId || null;
         if(!state.activeProjectId && state.projects.length) state.activeProjectId = state.projects[0].id;
         return;
@@ -928,8 +929,21 @@
       });
       if(state.projects.length) state.activeProjectId = state.projects[0].id;
     }catch(e){}
+    if(!state.projects.length){
+      state=starterState();
+      state.activeProjectId=state.projects[0].id;
+      paneContexts.forEach(function(p,i){p.tab="list";});
+      save();
+    }
+  }
+  function starterState(){
+      var clothes=newNode("옷 입기");clothes.children=["양말 신기","옷 입기","겉옷 챙기기"].map(function(t){return newNode(t);});
+      var projects=[{id:uid(),name:"기본프로젝트",tasks:["할 일을 입력하고 Enter를 눌러 모아봐","손잡이를 드래그해서 순서를 바꿔봐","Play!에서 한 가지씩 시작해봐 — 했음으로 완료, 지금 못함으로 뒤로 보내기","막막한 일은 쪼개기로 작은 단계로 나눠봐","앞에 Insert · 뒤에 Insert로 떠오른 일을 끼워 넣어봐"].map(function(t){return newNode(t);}),inserts:[],isRoutine:false,routineLog:[]},{id:uid(),name:"루틴프로젝트",tasks:[newNode("양치하기"),newNode("아침 먹기"),newNode("세수하기"),clothes],inserts:[],isRoutine:true,routineLog:[]}];
+      projects.forEach(function(p,i){p.id="starter_project_"+i;(function ids(nodes,prefix){nodes.forEach(function(n,j){n.id=prefix+"_"+j;ids(n.children,n.id);});})(p.tasks,"starter_task_"+i);});
+      return {projects:projects,activeProjectId:projects[0].id,integrationEvents:[],starterDemo:true};
   }
   function save(){
+    if(state.starterDemo && JSON.stringify(state.projects)!==JSON.stringify(starterState().projects))state.starterDemo=false;
     projectStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     window.dispatchEvent(new Event('jjogaera-change'));
   }
@@ -1583,8 +1597,9 @@
         name.replaceWith(editor);renameBtn.hidden=true;input.focus();input.select();
       });
 
-      var routineBtn = el("button","routine-toggle" + (p.isRoutine ? " active" : ""), "🔁");
+      var routineBtn = el("button","routine-toggle" + (p.isRoutine ? " active" : ""), "루틴");
       routineBtn.type = "button";
+      routineBtn.setAttribute("aria-pressed",String(!!p.isRoutine));
       routineBtn.title = p.isRoutine ? "루틴 프로젝트 해제" : "루틴 프로젝트로 설정 (모닝루틴, 수면루틴 등)";
       routineBtn.addEventListener("click", function(e){
         e.stopPropagation();
@@ -1790,6 +1805,7 @@
     }
   };
   window.jjogaera={
+    starterState:starterState,
     getState:function(){return JSON.parse(JSON.stringify(state));},
     applyState:function(next){
       var focused=document.activeElement;
@@ -1807,6 +1823,7 @@
     }
   };
   load();
+  document.getElementById("workspace").addEventListener("input",function(){state.starterDemo=false;},true);
   initializePanes();
   if(!state.projects.length) projectManager.open = true;
   document.getElementById("workspace").classList.toggle("manager-open", projectManager.open);
