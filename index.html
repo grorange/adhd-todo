@@ -461,6 +461,43 @@
   .backup-settings summary{cursor:pointer;}.backup-settings p{font-size:10px;}
   #selftalkieOvl .overlay-box{width:320px;padding:16px;border:1px solid #e2e2e2;border-radius:10px;box-shadow:none;}
   #selftalkieOvl h2{font-size:14px;margin:0 0 12px;}#selftalkieOvl .hint{font-size:12px;}#selftalkieOvl [hidden]{display:none!important;}
+
+  :root{--theme-surface:#faf8ff;--theme-input:#f6f1ff;--theme-accent:#635b7f;--theme-border:#aaa2bd;}
+  .topbar{background:var(--theme-surface);color:#263247;}
+  .workspace-tools{background:var(--theme-surface);}
+  .workspace-tools button{color:#535f73;background:#ffffffc9;border-color:#c1c8d4!important;}
+  .workspace-tools button:disabled{opacity:.65;}
+  .task-pane .add-row input[type=text]{background:var(--theme-input);border:1px solid var(--theme-border);color:#243047;}
+  .task-pane .add-row input::placeholder{color:#5d687b;opacity:1;}
+  .task-pane .add-row .btn{background:var(--theme-accent);color:white;}
+  .task-pane .tabs{background:transparent;padding:0;gap:8px;align-items:center;margin:8px 0 10px;}
+  .segment-track{position:relative;display:flex;flex:1;min-width:0;padding:3px;border:1px solid var(--theme-border);border-radius:24px;background:var(--theme-surface);isolation:isolate;}
+  .segment-track:before{content:"";position:absolute;z-index:-1;left:3px;top:3px;bottom:3px;width:calc((100% - 6px)/2);border-radius:20px;background:var(--theme-accent);box-shadow:0 1px 3px #19253820;transition:transform .18s ease,opacity .18s;}
+  .segment-track[data-active="execute"]:before{transform:translateX(100%);}
+  .segment-track[data-active="history"]:before{opacity:0;}
+  .task-pane .segment-track .tab-btn{position:relative;background:transparent;box-shadow:none;border:0;border-radius:20px;color:#556175;font-weight:500;padding:9px 5px;line-height:16px;}
+  .task-pane .segment-track .tab-btn.active{background:transparent;color:white;box-shadow:none;}
+  .task-pane .history-tab{width:36px;height:36px;flex:0 0 36px;padding:0;border-radius:50%;background:var(--theme-surface);border:1px solid var(--theme-border);color:#556175;box-shadow:none;}
+  .task-pane .history-tab.active{background:var(--theme-accent);color:white;}
+  .task-row{background:var(--theme-surface);border-color:var(--theme-border);}
+  .tree-toggle{background:var(--theme-input);color:var(--theme-accent);}
+  .pane-category{background:var(--theme-surface);color:#556175;border-radius:5px;}
+  .execute-card{background:var(--theme-surface);border:1px solid var(--theme-border);border-radius:12px;padding:13px 10px 10px;}
+  .execute-path{color:#647084;font-size:11px;line-height:1.5;margin-bottom:7px;}
+  .task-pane .execute-task-text{font-size:19px;font-weight:500;line-height:1.55;letter-spacing:-.3px;color:#263247;margin:0 auto 10px;padding:0 3px;max-width:38ch;overflow-wrap:anywhere;word-break:keep-all;}
+  .execute-next{color:#637086;font-size:11px;line-height:1.5;margin-bottom:6px;}
+  .timer-row{margin:4px 0 14px;}.timer-row .execute-timer{color:#69758a;}
+  .execute-actions{gap:7px;}
+  .task-pane .act-btn{min-height:42px;padding:10px 7px!important;border:1px solid transparent;font-size:12px;font-weight:600;}
+  .task-pane .act-a{background:#daf0df;color:#255b39;border-color:#9dc9a8;}
+  .task-pane .act-b{background:#fff0bf;color:#78541b;border-color:#dcc275;}
+  .task-pane .act-c{background:#7860bd;color:#fff;border-color:#6951ab;min-height:57px;}
+  .task-pane .act-c small{color:#fff;opacity:.95;}
+  .task-pane .act-d{background:#dcecfb;color:#2d557e;border-color:#a2bfdf;}
+  .task-pane .act-f{background:#f8dddd;color:#8a333a;border-color:#dca5a9;min-height:42px;}
+  #workspace>.project-manager{background:var(--theme-surface);border:1px solid var(--theme-border);}
+  @media(prefers-reduced-motion:reduce){.segment-track:before{transition:none;}}
+
 </style>
 </head>
 <body>
@@ -527,8 +564,10 @@
     <div class="col-card task-pane" id="leftPane">
       <div id="activeProjHead" class="active-proj-head"></div>
       <div class="tabs" id="mainTabs">
+        <div class="segment-track" data-active="execute" role="group" aria-label="작업 모드">
         <button class="tab-btn" data-tab="list">할 일 수집</button>
         <button class="tab-btn active" data-tab="execute">▶ Play!</button>
+        </div>
         <button class="tab-btn history-tab" data-tab="history" aria-label="성공의 기록" title="성공의 기록"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="3" width="15" height="18" rx="2"/><path d="M3 7h4M3 12h4M3 17h4M10 8h6M10 12h6M10 16h4"/></svg></button>
       </div>
       <div class="panel" id="panel-list">
@@ -687,6 +726,12 @@
   document.getElementById("viewBackground").addEventListener("input",function(e){viewSettings.background=e.target.value;saveViewSettings();});
   document.querySelectorAll("[data-background]").forEach(function(button){button.addEventListener("click",function(){viewSettings.background=button.dataset.background;saveViewSettings();});});
   function applyViewSettings(){
+    var hex=viewSettings.background.slice(1),rgb=[0,2,4].map(function(i){return parseInt(hex.slice(i,i+2),16);});
+    function tint(other,weight){return 'rgb('+rgb.map(function(v,i){return Math.round(v*weight+other[i]*(1-weight));}).join(',')+')';}
+    document.documentElement.style.setProperty('--theme-surface',tint([255,255,255],.2));
+    document.documentElement.style.setProperty('--theme-input',tint([255,255,255],.45));
+    document.documentElement.style.setProperty('--theme-accent',tint([51,65,85],.25));
+    document.documentElement.style.setProperty('--theme-border',tint([106,119,140],.45));
     document.documentElement.style.setProperty("--workspace-bg",viewSettings.background);
     document.getElementById("viewBackground").value=viewSettings.background;
     document.querySelectorAll("[data-background]").forEach(function(button){button.setAttribute("aria-pressed",String(button.dataset.background===viewSettings.background));});
@@ -1716,7 +1761,8 @@
     renderSelftalkie();
     paneContexts.forEach(function(p){
       bindPane(p);
-      p.root.querySelectorAll(".tab-btn").forEach(function(b){b.classList.toggle("active",b.dataset.tab===p.tab);});
+      p.root.querySelectorAll(".tab-btn").forEach(function(b){b.classList.toggle("active",b.dataset.tab===p.tab);b.setAttribute("aria-pressed",String(b.dataset.tab===p.tab));});
+      p.root.querySelector(".segment-track").dataset.active=p.tab;
       ["list","execute","history"].forEach(function(tab){paneElement(p,"panel-"+tab).classList.toggle("active",p.tab===tab);});
       renderActiveHead();renderTaskList();renderExecute();renderHistory();
     });
