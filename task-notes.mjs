@@ -2,7 +2,7 @@ export function receiveTaskNotes(records,payload){
  const next=structuredClone(records),events={...(next.jjogaera_events?.values||{})},incoming=payload?.events;
  if(!Array.isArray(incoming)||!incoming.length||incoming.length>200)throw Error('한 번에 1~200개 기록을 보내세요.');
  const accepted=[];const logs=next.timelog?.items||[],activities=next.activities?.items||[],timer=next.timer||{};
- for(const a of activities)if(a.id==='__jjogaera_work__'&&a.name==='쪼개라 작업')a.name='기본작업';
+ for(const a of activities)if(a.id==='__jjogaera_work__'){if(a.name==='쪼개라 작업')a.name='기본작업';if(a.color==='#635bda')a.color='#ffffff';}
  const iso=d=>new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,23);
  for(const raw of incoming){
   for(const key of ['id','taskId','projectId','projectName','text'])if(typeof raw[key]!=='string'||!raw[key]||raw[key].length>(key==='text'?3000:300))throw Error('잘못된 작업 기록입니다.');
@@ -13,7 +13,7 @@ export function receiveTaskNotes(records,payload){
   if(events[e.id]){if(['taskId','projectId','projectName','text','completedAt','status','nonProject','path','milestones'].some(key=>JSON.stringify(events[e.id][key]??(key==='nonProject'?false:[]))!==JSON.stringify(e[key])))throw Error('같은 ID에 다른 기록이 있습니다.');accepted.push(e.id);continue;}
   const t=e.localTime,live=timer.running&&timer.startIso;
   if(!logs.some(x=>x.start<=t&&t<x.stop)&&!(live&&live<=t)){
-   const aid='__jjogaera_work__';if(!activities.some(x=>x.id===aid))activities.push({id:aid,name:'기본작업',color:'#635bda',icon:''});
+   const aid='__jjogaera_work__';if(!activities.some(x=>x.id===aid))activities.push({id:aid,name:'기본작업',color:'#ffffff',icon:''});
    let start=iso(new Date(e.completedAt-300000)),stop=iso(new Date(e.completedAt+1));start=[start,t.slice(0,10)+'T00:00:00.000',...logs.filter(x=>x.stop<=t).map(x=>x.stop)].sort().at(-1);
    const future=logs.filter(x=>x.start>t).map(x=>x.start);if(live&&live>t)future.push(live);stop=[stop,...future].sort()[0];
    logs.push({index:logs.length,start,stop,activityId:aid,note:'',realized:false});

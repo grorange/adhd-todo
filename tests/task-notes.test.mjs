@@ -4,6 +4,7 @@ const records={activities:{items:[]},timelog:{items:[]},timer:{running:false},jj
 const event={id:'a',taskId:'t',projectId:'p',projectName:'Project',text:'Task',completedAt:Date.now()-10000,status:'done',path:[],milestones:[]};
 const result=receiveTaskNotes(records,{events:[event]});assert.equal(result.records.timelog.items.length,1);assert.equal(records.timelog.items.length,0);
 assert.equal(result.records.activities.items[0].name,'기본작업');
+assert.equal(result.records.activities.items[0].color,'#ffffff');
 const deleted=structuredClone(result.records);deleted.timelog.items=[];deleted.activities.items=[];
 const replay=receiveTaskNotes(deleted,{events:[event]});assert.equal(replay.records.timelog.items.length,0);assert.equal(replay.records.activities.items.length,0);
 assert.equal(receiveTaskNotes(result.records,{events:[event]}).records.timelog.items.length,1);
