@@ -1475,7 +1475,7 @@
     var mk = function(cls, label, sub, onClick){
       var b = el("button","act-btn "+cls);
       var strong = el("span",null,label);
-      var iconPaths={"했음":'<path d="m5 12 4 4L19 6"/>',"지금 못함":'<path d="M8 5v14M16 5v14"/>',"앞에 Insert":'<path d="M5 4v16m14-8H9m4-4-4 4 4 4"/>',"뒤에 Insert":'<path d="M19 4v16M5 12h10m-4-4 4 4-4 4"/>',"삭제":'<path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6"/>'};
+      var iconPaths={"했음":'<path d="m5 12 4 4L19 6"/>',"지금 못함":'<path d="M4 7h9a5 5 0 0 1 0 10H9m3-3-3 3 3 3"/>',"앞에 Insert":'<path d="M5 4v16m14-8H9m4-4-4 4 4 4"/>',"뒤에 Insert":'<path d="M19 4v16M5 12h10m-4-4 4 4-4 4"/>',"삭제":'<path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6"/>'};
       if(iconPaths[label]){var actionIcon=document.createElementNS("http://www.w3.org/2000/svg","svg");actionIcon.setAttribute("class","action-icon");actionIcon.setAttribute("viewBox","0 0 24 24");actionIcon.setAttribute("aria-hidden","true");actionIcon.innerHTML=iconPaths[label];strong.prepend(actionIcon);}
       if(cls==="act-c"){
         var icon=el("span","split-icon");icon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 2.5C5.5 2 1.5 6.2 1.5 11.5c0 4.8 3.1 8.8 7.8 9.7l3.1-8.4-4.8.8Z"/><path fill="currentColor" opacity=".7" d="m15.2 3-3.1 7.2 4.8-.8-4.3 12.1c5.7-.1 9.9-4.3 9.9-9.6 0-4.1-2.7-7.6-7.3-8.9Z"/></svg>';strong.prepend(icon);
