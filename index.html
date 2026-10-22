@@ -1975,6 +1975,11 @@
         if(data.checked){var at=Date.now();(function done(t){if(t.status==='pending'){t.status='done';t.completedAt=at;pauseTimerNode(t);}t.children.forEach(done);})(n);}
         else{reopen(n);reopenAncestors();}
         sweep(p.tasks);recordCompletions(p,before);
+      }else if(action==='move'){
+        var direction=data.direction===-1?-1:data.direction===1?1:0;
+        var at=found.loc.idx,next=at+direction;
+        if(!direction||!found.loc.owner||next<0||next>=found.loc.arr.length)return {ok:false};
+        found.loc.arr.splice(at,1);found.loc.arr.splice(next,0,n);
       }else if(action==='rename'){
         var text=String(data.text||'').trim();if(!text)throw Error('할 일을 입력해주세요.');n.text=text;
       }else if(action==='split'||action==='add'){
