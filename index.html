@@ -714,7 +714,7 @@
       });
       p.root.querySelectorAll(".tab-btn").forEach(function(btn){btn.addEventListener("click",function(){p.tab=btn.dataset.tab;savePaneLayout();renderAll();});});
       paneElement(p,"addBtn").addEventListener("click",function(){addTask(false);});
-      paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(false);}});
+      paneElement(p,"addInput").addEventListener("keydown",function(e){if(e.key==="Enter" && !e.isComposing){e.preventDefault();addTask(e.ctrlKey);}});
       var list=paneElement(p,"taskList");
       list.addEventListener("dragover",function(e){
         if(!taskDrag || !activeProject() || e.target.closest(".task-row"))return;
