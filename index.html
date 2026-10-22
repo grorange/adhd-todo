@@ -950,6 +950,7 @@
     if(state.starterDemo && JSON.stringify(state.projects)!==JSON.stringify(starterState().projects))state.starterDemo=false;
     projectStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     window.dispatchEvent(new Event('jjogaera-change'));
+    if(window.parent!==window){try{window.parent.dispatchEvent(new Event('breakdown-tasks-changed'));}catch(e){}}
   }
   function activeProject(){
     for(var i=0;i<state.projects.length;i++){
@@ -1938,6 +1939,58 @@
       return true;
     }
   };
+
+  // Chat is another view over these same project tasks, never a second task store.
+  function chatLocate(id){
+    for(var p of state.projects){var loc=locate(p.tasks,id);if(loc)return {project:p,loc:loc,task:loc.arr[loc.idx]};}
+    return null;
+  }
+  function chatProject(id){
+    var project=state.projects.find(function(p){return p.id===id;});
+    if(project)return project;
+    project=state.projects.find(function(p){return p.id==='starter_project_0'||p.id==='chat_default_project';});
+    if(!project){project={id:'chat_default_project',name:'기본프로젝트',tasks:[],inserts:[],isRoutine:false,routineLog:[]};state.projects.push(project);}
+    return project;
+  }
+  window.jjogaeraChat={
+    projects:function(){return state.projects.map(function(p){return {id:p.id,name:p.name};});},
+    get:function(id){var found=chatLocate(id);return found?structuredClone({task:found.task,project:{id:found.project.id,name:found.project.name}}):null;},
+    create:function(texts,projectId,key){
+      if(!Array.isArray(texts)||!texts.length||texts.length>100)throw Error('한 번에 1~100개의 할 일을 보낼 수 있어요.');
+      var project=chatProject(projectId),result=[];
+      texts.forEach(function(text,i){
+        text=String(text).trim();if(!text)throw Error('할 일을 입력해주세요.');
+        var id=key?'chat_'+String(key).replace(/[^A-Za-z0-9_-]/g,'').slice(0,100)+'_'+i:null;
+        var old=id&&chatLocate(id);if(old){result.push(structuredClone(old.task));return;}
+        var n=newNode(text);if(id)n.id=id;project.tasks.push(n);result.push(structuredClone(n));
+      });
+      save();renderAll();return result;
+    },
+    act:function(id,action,payload){
+      var found=chatLocate(id);if(!found)throw Error('삭제된 할 일이에요.');
+      var p=found.project,n=found.task,data=payload||{},before=completionSnapshot(p);
+      var reopen=function(target){target.status='pending';target.completedAt=null;target.completionGapMs=null;target.children.forEach(reopen);};
+      var reopenAncestors=function(){(function walk(nodes,ancestors){for(var node of nodes){if(node.id===id){ancestors.forEach(function(a){a.status='pending';a.completedAt=null;a.completionGapMs=null;});return true;}if(walk(node.children,ancestors.concat(node)))return true;}return false;})(p.tasks,[]);};
+      if(action==='toggle'){
+        if(data.checked){var at=Date.now();(function done(t){if(t.status==='pending'){t.status='done';t.completedAt=at;pauseTimerNode(t);}t.children.forEach(done);})(n);}
+        else{reopen(n);reopenAncestors();}
+        sweep(p.tasks);recordCompletions(p,before);
+      }else if(action==='rename'){
+        var text=String(data.text||'').trim();if(!text)throw Error('할 일을 입력해주세요.');n.text=text;
+      }else if(action==='split'||action==='add'){
+        var texts=action==='split'?data.texts:[data.text];
+        if(!Array.isArray(texts)||!texts.length||texts.length>100||texts.some(function(t){return !String(t||'').trim();}))throw Error('하위 할 일을 입력해주세요.');
+        n.status='pending';n.completedAt=null;n.completionGapMs=null;pauseTimerNode(n);reopenAncestors();
+        texts.forEach(function(t){n.children.push(newNode(String(t).trim()));});
+      }else if(action==='delete'){
+        var undoProject=structuredClone(p),position=state.projects.indexOf(p);
+        found.loc.arr.splice(found.loc.idx,1);sweep(p.tasks);save();renderAll();
+        offerProjectUndo(undoProject,projectVersion(p),position);return {ok:true};
+      }else throw Error('지원하지 않는 할 일 동작이에요.');
+      save();renderAll();return {ok:true};
+    }
+  };
+
   window.jjogaera={
     starterState:starterState,
     getState:function(){return JSON.parse(JSON.stringify(state));},
