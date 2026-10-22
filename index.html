@@ -118,6 +118,7 @@
     flex-shrink:0;padding:2px 3px;user-select:none;
   }
   .drag-handle:active{cursor:grabbing;}
+  .task-row .drag-handle{touch-action:none;-webkit-touch-callout:none;}
   .task-row.dragging,.proj-row.dragging{opacity:.4;}
   .task-row.drag-over,.proj-row.drag-over{border-color:var(--accent);background:var(--accent-soft);}
   .row-delete{
@@ -157,6 +158,17 @@
   .celebrate{font-size:15px;color:var(--sub);padding:34px 10px;}
 
   /* 히스토리 트리 */
+  [data-local-id="historyView"]{max-height:min(68vh,640px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:6px;}
+  .h-group{margin:3px 0;}
+  .h-group>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:6px;padding:4px 0;}
+  .h-group>summary::-webkit-details-marker{display:none;}
+  .h-group>summary:before{content:"▸";color:var(--sub);flex-shrink:0;}
+  .h-group[open]>summary:before{content:"▾";}
+  .h-group>summary .h-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .h-node .h-text{min-width:0;overflow-wrap:anywhere;}
+  .h-meta{font-size:11px;color:var(--sub);flex-shrink:0;}
+  .h-more{display:block;margin:10px auto;}
+  .h-full-text{white-space:pre-wrap;overflow-wrap:anywhere;padding:6px 0;}
   .h-tree{font-size:13.5px;line-height:1.7;}
   .h-node{display:flex;align-items:baseline;gap:6px;padding:2px 0;word-break:break-word;}
   .h-node .h-time{font-size:11px;color:var(--sub);flex-shrink:0;}
@@ -726,18 +738,14 @@
     focusPane(paneContexts[0]);
   }
   function syncPaneTimers(){
-    var running=[];
+    var running=new Set();
     paneContexts.forEach(function(p){
-      if(p.root.hidden || p.tab!=="execute")return;
-      var project=state.projects.find(function(x){return x.id===p.projectId;});
-      var node=project && findActionable(project.tasks);
-      if(node && running.indexOf(node)<0)running.push(node);
+      if(p.root.hidden||p.tab!=="execute"||!p.root.getClientRects().length||document.hidden)return;
+      if(window.frameElement&&!window.frameElement.getClientRects().length)return;
+      var project=state.projects.find(function(x){return x.id===p.projectId;}),node=project&&findActionable(project.tasks);
+      if(node){running.add(node.id);var timer=playTimers.get(node.id);if(!timer){timer={elapsed:0,started:null};playTimers.set(node.id,timer);}if(timer.started===null)timer.started=performance.now();}
     });
-    state.projects.forEach(function(p){(function walk(nodes){nodes.forEach(function(n){
-      if(running.indexOf(n)>=0){if(!n.runningSince)n.runningSince=Date.now();}
-      else pauseTimerNode(n);
-      walk(n.children);
-    });})(p.tasks);});
+    playTimers.forEach(function(timer,id){if(!running.has(id)&&timer.started!==null){timer.elapsed+=performance.now()-timer.started;timer.started=null;}});
   }
   var VIEW_KEY = "selftalkie_breakdowntodo_view_settings";
   var viewPresets = {compact:{width:960,density:60}, balanced:{width:1120,density:80}, relaxed:{width:1280,density:100}};
@@ -876,29 +884,20 @@
     { emoji: "👀", text: "계속 미뤄지네요. 너무 크면 쪼개거나, 지금 아니면 포기도 방법이에요." }
   ];
 
-  // ---------- 타이머 (인서트/재방문에도 이어지도록 시작시각 기반) ----------
-  var timerNodeId = null;
-  var timerProjectId = null;
+  // Play clocks are local session-only stopwatches, independent of completion records.
+  var playTimers=new Map(),lastCompletionAt=null;
+  var timerNodeId=null,timerProjectId=null;
+  function playElapsed(node){
+    var timer=playTimers.get(node.id);
+    return timer?timer.elapsed+(timer.started===null?0:performance.now()-timer.started):0;
+  }
   function pauseTimerNode(node){
-    if(node && node.runningSince){
-      node.timeSpentMs = (node.timeSpentMs||0) + (Date.now() - node.runningSince);
-      node.runningSince = null;
-    }
+    var timer=node&&playTimers.get(node.id);
+    if(timer&&timer.started!==null){timer.elapsed+=performance.now()-timer.started;timer.started=null;}
   }
-  function pauseGlobalTimer(){
-    finalizeAllRunning();
-    timerNodeId=null;timerProjectId=null;
-  }
-  function finalizeAllRunning(){
-    state.projects.forEach(function(p){
-      (function walk(nodes){
-        nodes.forEach(function(n){
-          pauseTimerNode(n);
-          walk(n.children);
-        });
-      })(p.tasks);
-    });
-  }
+  function pauseGlobalTimer(){finalizeAllRunning();timerNodeId=null;timerProjectId=null;}
+  function finalizeAllRunning(){playTimers.forEach(function(timer){if(timer.started!==null){timer.elapsed+=performance.now()-timer.started;timer.started=null;}});}
+  function clearLegacyRunning(){state.projects.forEach(function(p){(function walk(nodes){nodes.forEach(function(n){n.runningSince=null;walk(n.children);});})(p.tasks);});}
 
   // ---------- 상태 ----------
   var state = { projects: [], activeProjectId: null };
@@ -1068,7 +1067,7 @@
         n.status = "pending";
         n.completedAt = null;
         n.timeSpentMs = 0;
-        n.runningSince = null;
+        n.runningSince = null;delete n.completionGapMs;delete n.completionTimeMode;playTimers.delete(n.id);
         n.postponeCount = 0;
         resetTree(n.children);
       });
@@ -1269,6 +1268,70 @@
     sweep(sourceProject.tasks);if(p!==sourceProject)sweep(p.tasks);
     save();renderAll();
   }
+  function enableTouchTaskDrag(handle,row,task){
+    var gesture=null;
+    function cleanup(){
+      if(!gesture)return;
+      clearTimeout(gesture.timer);cancelAnimationFrame(gesture.frame);
+      try{handle.releasePointerCapture(gesture.pointer);}catch(e){}
+      row.classList.remove("dragging");clearDropHints();taskDrag=null;gesture=null;
+    }
+    function targetAt(x,y){
+      var element=document.elementFromPoint(x,y),list=element&&element.closest(".task-list");
+      if(!list)return null;
+      var pane=paneContexts.find(function(p){return p.root.contains(list);});
+      if(!pane)return null;focusPane(pane);
+      var target=element.closest(".task-row"),gap=target?null:gapDropTarget(list,y);
+      target=target||(gap&&gap.row);
+      if(target&&!canDropOn(target.dataset.taskId))return null;
+      return {list:list,id:target?target.dataset.taskId:null,mode:target?(gap?gap.mode:dropMode(target,y)):"root",row:target,pane:pane};
+    }
+    function update(){
+      if(!gesture||!gesture.active)return;
+      clearDropHints();gesture.target=targetAt(gesture.x,gesture.y);
+      if(gesture.target){
+        if(gesture.target.row)showDropHint(gesture.target.row,gesture.target.mode);
+        else gesture.target.list.classList.add("drop-empty");
+      }
+    }
+    function scrollFrame(){
+      if(!gesture||!gesture.active)return;
+      var element=document.elementFromPoint(gesture.x,gesture.y),parent=element;
+      while(parent&&parent!==document.body){
+        if(parent.scrollHeight>parent.clientHeight+1&&/auto|scroll/.test(getComputedStyle(parent).overflowY))break;
+        parent=parent.parentElement;
+      }
+      var rect=parent&&parent!==document.body?parent.getBoundingClientRect():{top:0,bottom:innerHeight};
+      var delta=gesture.y<rect.top+44?-8:gesture.y>rect.bottom-44?8:0;
+      if(delta){if(parent&&parent!==document.body)parent.scrollTop+=delta;else window.scrollBy(0,delta);update();}
+      gesture.frame=requestAnimationFrame(scrollFrame);
+    }
+    handle.addEventListener("contextmenu",function(e){e.preventDefault();});
+    handle.addEventListener("pointerdown",function(e){
+      if(e.pointerType!=="touch"||e.isPrimary===false)return;
+      cleanup();e.preventDefault();
+      gesture={pointer:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,active:false,source:{id:task.id,projectId:state.activeProjectId}};
+      try{handle.setPointerCapture(e.pointerId);}catch(error){}
+      gesture.timer=setTimeout(function(){
+        if(!gesture)return;gesture.active=true;taskDrag=gesture.source;row.classList.add("dragging");update();scrollFrame();
+      },350);
+    });
+    handle.addEventListener("pointermove",function(e){
+      if(!gesture||e.pointerId!==gesture.pointer)return;
+      gesture.x=e.clientX;gesture.y=e.clientY;
+      if(!gesture.active){if(Math.hypot(e.clientX-gesture.startX,e.clientY-gesture.startY)>8)cleanup();return;}
+      e.preventDefault();update();
+    });
+    handle.addEventListener("pointerup",function(e){
+      if(!gesture||e.pointerId!==gesture.pointer)return;
+      e.preventDefault();if(gesture.active)update();
+      var source=gesture.source,target=gesture.active&&gesture.target;cleanup();
+      if(target){focusPane(target.pane);moveTask(source,target.id,target.mode);}
+    });
+    handle.addEventListener("pointercancel",cleanup);
+    handle.addEventListener("lostpointercapture",cleanup);
+    handle.addEventListener("dragstart",function(e){if(gesture)e.preventDefault();});
+  }
   function renderNodes(nodes, depth){
     nodes.forEach(function(task, idx){
       if(task.status !== "pending") return;
@@ -1277,7 +1340,8 @@
       row.dataset.taskId = task.id;
       var handle = el("span","drag-handle","⋮⋮");
       handle.draggable = true;
-      handle.title = "드래그: 가운데는 하위로, 삽입선은 같은 단계로";
+      handle.title = "드래그: 가운데는 하위로, 삽입선은 같은 단계로 · 모바일은 길게 누른 뒤 이동";
+      enableTouchTaskDrag(handle,row,task);
       handle.addEventListener("dragstart", function(e){
         taskDrag = {id:task.id,projectId:state.activeProjectId};
         e.dataTransfer.effectAllowed = "move";
@@ -1379,15 +1443,15 @@
       executeCard.appendChild(el("div","celebrate","🎉 지금 할 일이 없습니다."));
       return;
     }
-    var timerEl = el("div","execute-timer","⏱ " + formatDuration((current.timeSpentMs||0) + (current.runningSince ? Date.now()-current.runningSince : 0)));
+    var timerEl = el("div","execute-timer","⏱ " + formatDuration(playElapsed(current)));
     timerEl.id = currentPane===paneContexts[0] ? "executeTimerDisplay" : "executeTimerDisplayRight";
     var timerRow=el("div","timer-row");
+    timerEl.title="Play에서 보는 임시 스톱워치 · 성공기록과 Task Note에는 이 시간이 저장되지 않아요";
     timerRow.appendChild(timerEl);
-    var resetTimer=el("button","timer-reset","↺");resetTimer.setAttribute("aria-label","현재 할 일 타이머 초기화");
-    resetTimer.type="button";resetTimer.title="현재 할 일의 타이머를 0부터 다시 시작";
+    var resetTimer=el("button","timer-reset","↺");resetTimer.setAttribute("aria-label","임시 스톱워치 초기화");
+    resetTimer.type="button";resetTimer.title="임시 스톱워치만 0부터 다시 시작 · 성공기록의 완료 간격에는 영향 없음";
     resetTimer.addEventListener("click",function(){
-      current.timeSpentMs=0;current.runningSince=Date.now();
-      save();renderAll();
+      playTimers.set(current.id,{elapsed:0,started:performance.now()});timerEl.textContent="⏱ "+formatDuration(0);
     });
     timerRow.appendChild(resetTimer);
     var path = findPath(p.tasks, current.id, []);
@@ -1484,73 +1548,87 @@
   // ---------- 히스토리 탭 ----------
   var historyView = document.getElementById("historyView");
   function renderHistory(){
-    historyView.innerHTML = "";
-    var p = activeProject();
-    if(!p){
-      historyView.appendChild(el("div","empty-msg","프로젝트를 선택하세요."));
-      return;
+    var view=historyView,p=activeProject(),pane=currentPane;
+    if(pane.historyObserver){pane.historyObserver.disconnect();pane.historyObserver=null;}
+    var previous=pane.historyUI;
+    var ui=previous&&previous.projectId===(p&&p.id)?previous:{projectId:p&&p.id,limit:30,expanded:new Map(),scroll:0};
+    if(previous===ui)ui.scroll=view.scrollTop;
+    pane.historyUI=ui;view.innerHTML="";
+    if(!p){view.appendChild(el("div","empty-msg","프로젝트를 선택하세요."));return;}
+    var cache=new WeakMap(),cutoff=Date.now()-3*86400000;
+    function stats(node){
+      if(cache.has(node))return cache.get(node);
+      var children=node.children||[],parts=children.map(stats);
+      var result={at:parts.reduce(function(at,x){return Math.max(at,x.at);},node.completedAt||0),resolved:node.status!=="pending"&&parts.every(function(x){return x.resolved;}),done:children.length?parts.reduce(function(n,x){return n+x.done;},0):(node.status==="done"?1:0),total:children.length?parts.reduce(function(n,x){return n+x.total;},0):1,estimated:node.completionTimeMode==="gap"||parts.some(function(x){return x.estimated;}),time:(node.completionTimeMode==="gap"?(node.completionGapMs||0):(node.timeSpentMs||0))+parts.reduce(function(n,x){return n+x.time;},0)};
+      cache.set(node,result);return result;
     }
-    var tree = el("div","h-tree");
-    var hasAny = renderHistNodes(tree, p.tasks);
-    if(!hasAny){
-      tree.appendChild(el("div","empty-msg","아직 기록이 없습니다."));
+    function historyTime(info){
+      var label=el("span","h-meta","· "+(info.estimated?"약 ":"")+formatDuration(info.time));
+      if(info.estimated)label.title="완료 간격으로 추정한 시간 · 첫 완료, 2시간 이상 간격, 일괄 완료는 제외 · Play 스톱워치와 별개";
+      return label;
     }
-    historyView.appendChild(tree);
-
-    var inserts = [];
-    collectResolvedNonProject(p.tasks, inserts);
-    if(inserts.length){
-      historyView.appendChild(el("div","h-insert-title","Insert"));
-      inserts.sort(function(a,b){ return (b.completedAt||0)-(a.completedAt||0); });
-      var box = el("div","h-tree");
-      inserts.forEach(function(n){
-        var cls = n.status==="done" ? " h-done" : (n.status==="gaveup" ? " h-gaveup" : "");
-        var row = el("div","h-node" + cls);
-        row.appendChild(el("span",null, n.status==="done"?"☑️":"❌"));
-        var t = el("span","h-text",n.text);
-        row.appendChild(t);
-        row.appendChild(el("span","h-time",formatTs(n.completedAt)));
-        box.appendChild(row);
-      });
-      historyView.appendChild(box);
+    function decorate(row,node){
+      row.classList.add(node.status==="done"?"h-done":node.status==="gaveup"?"h-gaveup":"h-pending");
+      row.appendChild(el("span",null,node.status==="done"?"☑️":node.status==="gaveup"?"❌":node.children.length?"➡️":"🔲"));
+      row.appendChild(el("span","h-text",node.text));
     }
-
-    if(p.isRoutine && p.routineLog && p.routineLog.length){
-      historyView.appendChild(el("div","routine-log-title","🔁 지난 루틴 기록"));
-      var log = el("div","routine-log");
-      p.routineLog.forEach(function(entry){
-        log.appendChild(el("div","routine-log-row", formatTs(entry.at) + " — " + entry.done + "/" + entry.total + " 완료"));
-      });
-      historyView.appendChild(log);
+    function visibleNodes(nodes){
+      var result=[];nodes.forEach(function(n){if(n.nonProject)result.push.apply(result,visibleNodes(n.children));else result.push(n);});return result;
     }
-  }
-  function renderHistNodes(container, nodes){
-    var rendered = false;
-    nodes.forEach(function(n){
-      if(n.nonProject){
-        if(renderHistNodes(container, n.children)) rendered = true;
-        return;
+    function appendNodes(container,nodes){
+      var offset=0,more;
+      function next(){
+        if(more)more.remove();
+        nodes.slice(offset,offset+30).forEach(function(n){container.appendChild(taskGroup(n,false));});offset+=30;
+        if(offset<nodes.length){more=el("button","btn btn-ghost h-more","하위 기록 더 보기");more.type="button";more.onclick=next;container.appendChild(more);}
       }
-      rendered = true;
-      var icon;
-      if(n.status === "done") icon = "☑️";
-      else if(n.status === "gaveup") icon = "❌";
-      else if(n.children.length > 0) icon = "➡️";
-      else icon = "🔲";
-      var cls = n.status==="done" ? " h-done" : (n.status==="gaveup" ? " h-gaveup" : "");
-      var row = el("div","h-node" + cls);
-      row.appendChild(el("span",null,icon));
-      row.appendChild(el("span","h-text",n.text));
-      if(n.completedAt) row.appendChild(el("span","h-time",formatTs(n.completedAt)));
-      if(n.timeSpentMs) row.appendChild(el("span","h-time","· "+formatDuration(n.timeSpentMs)));
-      container.appendChild(row);
-      if(n.children.length){
-        var kids = el("div","h-children");
-        renderHistNodes(kids, n.children);
-        if(kids.childNodes.length) container.appendChild(kids);
+      next();
+    }
+    function taskGroup(node,insert){
+      var detail=el("details","h-group"),summary=el("summary","h-node"),info=stats(node);
+      detail.dataset.recordId=node.id;decorate(summary,node);
+      if(insert)summary.appendChild(el("span","h-meta","Insert"));
+      if(info.at)summary.appendChild(el("span","h-meta",formatTs(info.at)));
+      if(node.children.length)summary.appendChild(el("span","h-meta",info.done+"/"+info.total+"개"));
+      if(info.time)summary.appendChild(historyTime(info));
+      var old=info.resolved&&info.at&&info.at<=cutoff;
+      if(!node.children.length&&!old){summary=el("div","h-node");summary.dataset.recordId=node.id;decorate(summary,node);if(insert)summary.appendChild(el("span","h-meta","Insert"));if(info.at)summary.appendChild(el("span","h-meta",formatTs(info.at)));if(info.time)summary.appendChild(historyTime(info));return summary;}
+      detail.appendChild(summary);
+      var content=null;
+      function fill(){
+        if(detail.open&&!content){
+          content=el("div","h-children");
+          var children=visibleNodes(node.children);
+          if(children.length)appendNodes(content,children);else content.appendChild(el("div","h-full-text",node.text));
+          detail.appendChild(content);
+        }else if(!detail.open&&content){content.remove();content=null;}
       }
-    });
-    return rendered;
+      detail.open=ui.expanded.has(node.id)?ui.expanded.get(node.id):!old;
+      var lastOpen=detail.open;
+      detail.addEventListener("toggle",function(){if(lastOpen!==detail.open)ui.expanded.set(node.id,detail.open);lastOpen=detail.open;fill();});
+      fill();return detail;
+    }
+    var entries=visibleNodes(p.tasks).map(function(n){return {kind:"task",node:n,at:stats(n).at};});
+    var inserts=[];collectResolvedNonProject(p.tasks,inserts);
+    inserts.forEach(function(n){entries.push({kind:"insert",node:n,at:n.completedAt||0});});
+    if(p.isRoutine)(p.routineLog||[]).forEach(function(log,i){entries.push({kind:"routine",log:log,at:log.at||0,index:i});});
+    entries=entries.map(function(entry,i){entry.order=i;return entry;}).sort(function(a,b){return b.at-a.at||a.order-b.order;});
+    if(!entries.length){view.appendChild(el("div","empty-msg","아직 기록이 없습니다."));return;}
+    var tree=el("div","h-tree");view.appendChild(tree);var offset=0,more=null;
+    function next(){
+      if(more){if(pane.historyObserver)pane.historyObserver.disconnect();more.remove();}
+      var end=Math.min(entries.length,ui.limit);
+      entries.slice(offset,end).forEach(function(entry){
+        if(entry.node)tree.appendChild(taskGroup(entry.node,entry.kind==="insert"));
+        else tree.appendChild(el("div","routine-log-row",formatTs(entry.at)+" — 지난 루틴 · "+entry.log.done+"/"+entry.log.total+" 완료"));
+      });offset=end;
+      if(offset<entries.length){
+        more=el("button","btn btn-ghost h-more","이전 기록 더 보기 ("+(entries.length-offset)+"묶음)");more.type="button";
+        more.onclick=function(){ui.limit+=30;next();};view.appendChild(more);
+        if(window.IntersectionObserver){pane.historyObserver=new IntersectionObserver(function(items){if(items.some(function(item){return item.isIntersecting;})){ui.limit+=30;next();}},{root:view});pane.historyObserver.observe(more);}
+      }
+    }
+    next();view.scrollTop=ui.scroll;
   }
 
   // ---------- 프로젝트 관리 ----------
@@ -1750,6 +1828,13 @@
       return previous[entry.id] === "pending" && entry.node.status !== "pending";
     });
     var leaves = changed.filter(function(entry){return !entry.node.children.length;});
+    if(leaves.length){
+      var at=Math.max.apply(null,leaves.map(function(entry){return entry.node.completedAt||0;}));
+      var gap=lastCompletionAt===null?null:at-lastCompletionAt;
+      changed.forEach(function(entry){entry.node.completionTimeMode="gap";entry.node.completionGapMs=null;playTimers.delete(entry.id);});
+      if(leaves.length===1&&leaves[0].node.status==="done"&&gap>0&&gap<7200000)leaves[0].node.completionGapMs=gap;
+      lastCompletionAt=at;
+    }
     var records = leaves.map(function(entry){
       var n = entry.node;
       return {event:{id:typeof crypto.randomUUID === "function" ? crypto.randomUUID() : uid()+uid(),
@@ -1822,7 +1907,11 @@
       p.root.querySelectorAll(".tab-btn").forEach(function(b){b.classList.toggle("active",b.dataset.tab===p.tab);b.setAttribute("aria-pressed",String(b.dataset.tab===p.tab));});
       p.root.querySelector(".segment-track").dataset.active=p.tab;
       ["list","execute","history"].forEach(function(tab){paneElement(p,"panel-"+tab).classList.toggle("active",p.tab===tab);});
-      renderActiveHead();renderTaskList();renderExecute();renderHistory();
+      renderActiveHead();renderTaskList();renderExecute();
+      if(p.tab==="history")renderHistory();else{
+        if(p.historyObserver){p.historyObserver.disconnect();p.historyObserver=null;}
+        if(p.historyUI){p.historyUI.limit=30;p.historyUI.scroll=0;paneElement(p,"historyView").replaceChildren();}
+      }
     });
     focusPane(original);
     renderProjects();savePaneLayout();save();
@@ -1855,10 +1944,8 @@
     applyState:function(next){
       var focused=document.activeElement;
       var editing=focused && focused.classList.contains("task-text") ? {id:focused.closest(".task-row").dataset.taskId,pane:focused.closest(".task-pane"),start:focused.selectionStart,end:focused.selectionEnd} : null;
-      var timers={};
-      state.projects.forEach(function(p){(function walk(nodes){nodes.forEach(function(n){if(n.runningSince)timers[n.id]=n.runningSince;walk(n.children);});})(p.tasks);});
-      state=next;
-      state.projects.forEach(function(p){(function walk(nodes){nodes.forEach(function(n){n.runningSince=timers[n.id]||null;walk(n.children);});})(p.tasks);});
+      if(state.cloudOwner!==next.cloudOwner){lastCompletionAt=null;playTimers.clear();}
+      state=next;clearLegacyRunning();
       renderAll();
       if(editing){
         var row=Array.from(editing.pane.querySelectorAll(".task-row")).find(function(r){return r.dataset.taskId===editing.id;});
@@ -1872,17 +1959,19 @@
   initializePanes();
   if(!state.projects.length) projectManager.open = true;
   document.getElementById("workspace").classList.toggle("manager-open", projectManager.open);
+  clearLegacyRunning();
   finalizeAllRunning();
   state.projects.forEach(function(p){ sweep(p.tasks); });
   renderAll();
   save();
 
   setInterval(function(){
+    syncPaneTimers();
     paneContexts.forEach(function(p){
       var project=state.projects.find(function(x){return x.id===p.projectId;});
       var node=project && findActionable(project.tasks);
       var disp=p.root.querySelector(".execute-timer");
-      if(node && disp)disp.textContent="⏱ "+formatDuration((node.timeSpentMs||0)+(node.runningSince ? Date.now()-node.runningSince : 0));
+      if(node && disp)disp.textContent="⏱ "+formatDuration(playElapsed(node));
     });
   },1000);
 
