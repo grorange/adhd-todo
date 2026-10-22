@@ -4,6 +4,13 @@ const iso=n=>{const d=new Date(n);return new Date(n-d.getTimezoneOffset()*60000)
 export function reconcileCompletions(input, source, timer={}){
  const logs=normalizeLogs(input).map(x=>({...x,eventIds:[...(x.eventIds||[])]})),events=structuredClone(source);
  const owners=new Map(Object.values(events).map(e=>[e.id,e._recordId]));
+ for(const x of logs){
+  if(x.activityId!=='__jjogaera_work__'||Object.hasOwn(x,'autoCompletion')||x.kind==='completion')continue;
+  const a=ms(x.start),b=ms(x.stop);if(!(b-a>=0&&b-a<60000))continue;
+  const nearby=Object.values(events).some(e=>ms(e.localTime)>=a-windowMs&&ms(e.localTime)<=b+windowMs);
+  const activity=logs.some(y=>y.activityId!=='__jjogaera_work__'&&y.kind!=='completion'&&ms(y.start)<=b+windowMs&&ms(y.stop)>=a-windowMs);
+  if(Object.values(events).some(e=>e._recordId===x.id)||(nearby&&activity)){x.autoCompletion=true;x.start=iso(b-windowMs);}
+ }
  const groups=new Map(logs.filter(x=>x.kind==='completion').map(x=>[x.id,x]));
  const live=timer.running&&timer.startIso?{id:'live:'+timer.startIso,start:timer.startIso,stop:null}:null;
 
