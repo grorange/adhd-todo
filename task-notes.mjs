@@ -1,3 +1,4 @@
+import {reconcileCompletions} from './completion-placement.mjs';
 import {normalizeLogs,stableId} from './record-ids.mjs';
 export function receiveTaskNotes(records,payload){
  const next=structuredClone(records),events={...(next.jjogaera_events?.values||{})},incoming=payload?.events;
@@ -12,15 +13,7 @@ export function receiveTaskNotes(records,payload){
   if(!['done','gaveup'].includes(raw.status||'done'))throw Error('잘못된 작업 상태입니다.');
   const e={id:raw.id,taskId:raw.taskId,projectId:raw.projectId,projectName:raw.projectName,text:raw.text,completedAt:raw.completedAt,status:raw.status||'done',path:raw.path||[],milestones:raw.milestones||[],localTime:iso(new Date(raw.completedAt)),nonProject:!!raw.nonProject};
   if(events[e.id]){if(['taskId','projectId','projectName','text','completedAt','status','nonProject','path','milestones'].some(key=>JSON.stringify(events[e.id][key]??(key==='nonProject'?false:[]))!==JSON.stringify(e[key])))throw Error('같은 ID에 다른 기록이 있습니다.');accepted.push(e.id);continue;}
-  const t=e.localTime,live=timer.running&&timer.startIso;
-  if(!logs.some(x=>x.kind!=='completion'&&x.start<=t&&t<x.stop)&&!(live&&live<=t)){
-   const aid='__jjogaera_work__';if(!activities.some(x=>x.id===aid))activities.push({id:aid,name:'기본작업',color:'#ffffff',icon:''});
-   let group=logs.find(x=>x.kind==='completion'&&x.start.slice(0,10)===t.slice(0,10)&&e.completedAt>=x.groupStartedAt&&e.completedAt-x.groupStartedAt<=600000);
-   if(!group){group={id:'completion_'+stableId(e.id),kind:'completion',index:logs.length,start:t,stop:t,activityId:aid,note:'',realized:false,groupStartedAt:e.completedAt,eventIds:[]};logs.push(group);}
-   if(!group.eventIds.includes(e.id))group.eventIds.push(e.id);
-   group.start=group.stop=[group.start,t].sort().at(-1);e._groupId=group.id;
-  }
   events[e.id]={...e,_placed:true};accepted.push(e.id);
  }
- next.jjogaera_events={values:events};next.timelog={items:logs};next.activities={items:activities};return {records:next,acceptedIds:accepted};
+ const placed=reconcileCompletions(logs,events,timer);if(placed.logs.some(x=>x.activityId==='__jjogaera_work__')&&!activities.some(x=>x.id==='__jjogaera_work__'))activities.push({id:'__jjogaera_work__',name:'기본작업',color:'#ffffff',icon:''});next.jjogaera_events={values:placed.events};next.timelog={items:placed.logs};next.activities={items:activities};return {records:next,acceptedIds:accepted};
 }
